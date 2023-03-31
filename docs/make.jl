@@ -23,5 +23,5 @@ makedocs(;
 
 deploydocs(;
     repo="github.com/JoshuaBillson/MixtureDensityNetworks.jl",
-    devbranch="gh-pages",
+    devbranch="main",
 )
