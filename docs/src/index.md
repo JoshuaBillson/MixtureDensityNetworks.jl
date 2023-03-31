@@ -11,4 +11,5 @@ Documentation for [MixtureDensityNetworks](https://github.com/JoshuaBillson/Mixt
 
 ```@autodocs
 Modules = [MixtureDensityNetworks]
+Private = false
 ```

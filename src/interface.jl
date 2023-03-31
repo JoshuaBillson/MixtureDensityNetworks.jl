@@ -38,6 +38,15 @@ function fit!(model::MDN, X::Matrix{Float32}, Y::Matrix{Float32})
     model.fitresult = m
 end
 
+"""
+    fit!(model, X, Y)
+
+Fit the model to the data given by X and Y.
+
+X is expected to be a dxn matrix where d is the dimension of the data and n is the number of samples.
+
+Y is expected to be a 1xn matrix where n is the number of samples.
+"""
 function fit!(model::MDN, X::Matrix{<:Number}, Y::Matrix{<:Number})
     fit!(model, Float32.(X), Float32.(Y))
 end
@@ -53,6 +62,15 @@ function predict(model::MDN, X::Matrix{Float32})
 	return dists
 end
 
+"""
+    predict(model, X)
+
+Make a prediction with the fitted model given the features specified by X.
+
+X is expected to be a dxn matrix where d is the dimension of the data and n is the number of samples.
+
+Returns a vector of Distributions.MixtureModel.
+"""
 function predict(model::MDN, X::Matrix{<:Number})
     predict(model, Float32.(X))
 end

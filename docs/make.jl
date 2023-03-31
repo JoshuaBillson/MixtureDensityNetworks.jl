@@ -1,3 +1,5 @@
+push!(LOAD_PATH,"../src/")
+
 using MixtureDensityNetworks
 using Documenter
 
@@ -19,7 +21,9 @@ makedocs(;
     ],
 )
 
+"""
 deploydocs(;
     repo="github.com/JoshuaBillson/MixtureDensityNetworks.jl",
     devbranch="main",
 )
+"""
