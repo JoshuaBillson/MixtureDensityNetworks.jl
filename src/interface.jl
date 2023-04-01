@@ -45,7 +45,7 @@ function fit!(model::MDN, X::Matrix{<:Number}, Y::Matrix{<:Number})
     fit!(model, Float32.(X), Float32.(Y))
 end
 
-function fit!(model::MDN, X::Matrix{Float32}, Y::Matrix{Float32})
+function fit!(model::MDN, X::Matrix{Float64}, Y::Matrix{Float64})
 	# Create Model
 	m = isnothing(model.fitresult) ? MixtureDensityNetwork(size(X, 1), model.layers, model.mixtures) : model.fitresult
 
@@ -59,11 +59,11 @@ function fit!(model::MDN, X::Matrix{Float32}, Y::Matrix{Float32})
     data = Flux.DataLoader((X, Y); batchsize=model.batchsize, shuffle=true)
 
 	# Iterate Over Epochs
-    learning_curve = Float32[]
+    learning_curve = Float64[]
     @progress for epoch in 1:model.epochs
 
         # Iterate Over Data
-        losses = Float32[]
+        losses = Float64[]
         for (x, y) in data
 
             # Compute Loss and Gradient
@@ -105,7 +105,7 @@ function predict(model::MDN, X::Matrix{<:Number})
     predict(model, Float32.(X))
 end
 
-function predict(model::MDN, X::Matrix{Float32})
+function predict(model::MDN, X::Matrix{Float64})
     @assert !isnothing(model.fitresult) "Error: Must call fit!(model, X, Y) before predicting!"
     μ, σ, pi = model.fitresult(X)
 	dists = Distributions.MixtureModel[]
@@ -132,7 +132,7 @@ function predict_mean(model::MDN, X::Matrix{<:Number})
     predict_mean(model, Float32.(X))
 end
 
-function predict_mean(model::MDN, X::Matrix{Float32})
+function predict_mean(model::MDN, X::Matrix{Float64})
     @assert !isnothing(model.fitresult) "Error: Must call fit!(model, X, Y) before predicting!"
     return predict(model, X) .|> mean
 end
@@ -153,7 +153,7 @@ function predict_mode(model::MDN, X::Matrix{<:Number})
     predict_mode(model, Float32.(X))
 end
 
-function predict_mode(model::MDN, X::Matrix{Float32})
+function predict_mode(model::MDN, X::Matrix{Float64})
     @assert !isnothing(model.fitresult) "Error: Must call fit!(model, X, Y) before predicting!"
     
     # Run Forward Pass
