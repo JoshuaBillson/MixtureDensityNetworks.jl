@@ -14,9 +14,9 @@ function likelihood_loss(μ::Matrix{<:Real}, σ::Matrix{<:Real}, pi::Matrix{<:Re
 end
 
 function likelihood_loss(μ::Matrix{Float32}, σ::Matrix{Float32}, pi::Matrix{Float32}, y::Matrix{Float32})
-	@pipe pi .* (1.0 ./ ((sqrt(2π) .* σ)).*exp.(-0.5((y .- μ) ./ σ).^2.0)) |>
+	@pipe pi .* (1.0f0 ./ ((sqrt(Float32(2π)) .* σ)).*exp.(-0.5f0((y .- μ) ./ σ).^2.0f0)) |>
 	sum(_, dims=1) |>
-	clamp.(_, eps(Float64), 10000.0) |>
+	clamp.(_, eps(Float32), 10000.0f0) |>
 	-log.(_) |>
 	mean(_)
 end

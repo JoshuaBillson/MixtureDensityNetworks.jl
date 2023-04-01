@@ -50,20 +50,43 @@ function fit!(model::MDN, X::Matrix{Float32}, Y::Matrix{Float32})
 	m = isnothing(model.fitresult) ? MixtureDensityNetwork(size(X, 1), model.layers, model.mixtures) : model.fitresult
 
     # Define Optimizer
-    opt = Flux.setup(Flux.Adam(model.η), m)
+    opt = Flux.Adam(model.η)
+
+    # Get Parameters
+    params = Flux.params(m)
 
     # Prepare Training Data
     data = Flux.DataLoader((X, Y); batchsize=model.batchsize, shuffle=true)
 
-	# Fit Model
-    for epoch in 1:model.epochs
-        Flux.train!(m, data, opt) do m, x, y
-            likelihood_loss(m(x)..., y)
+	# Iterate Over Epochs
+    learning_curve = Float32[]
+    @progress for epoch in 1:model.epochs
+
+        # Iterate Over Data
+        losses = Float32[]
+        for (x, y) in data
+
+            # Compute Loss and Gradient
+            l, grad = Flux.withgradient(params) do 
+                likelihood_loss(m(x)..., y)
+            end
+
+            # Update Parameters
+            Flux.update!(opt, params, grad)
+
+            # Save Loss
+            push!(losses, l)
         end
+
+        # Add Average Loss To Learning Curve
+        push!(learning_curve, mean(losses))
     end
 
     # Save Fitted Model
     model.fitresult = m
+
+    # Return Learning Curve
+    return learning_curve
 end
 
 """

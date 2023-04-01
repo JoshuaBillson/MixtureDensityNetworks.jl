@@ -3,6 +3,7 @@ module MixtureDensityNetworks
 import Flux
 using Distributions
 using Statistics
+using ProgressLogging
 using DocStringExtensions
 using Pipe: @pipe
 
