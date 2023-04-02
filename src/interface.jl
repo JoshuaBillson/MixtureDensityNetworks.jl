@@ -12,7 +12,20 @@ mutable struct MDN
     η::Float64
     epochs::Int
     batchsize::Int
-    fitresult
+end
+
+"""
+$(TYPEDEF)
+
+A struct for associating a model's hyperparameters with its training state.
+
+# Parameters
+$(TYPEDFIELDS)
+"""
+mutable struct Machine
+    hypers::MDN
+    fitresult::Union{MixtureDensityNetwork,Nothing}
+    report::NamedTuple{(:learning_curve, :best_epoch, :best_loss), Tuple{Vector{Float64}, Int, Float64}}
 end
 
 """
@@ -28,7 +41,19 @@ Defines an MDN model with the given hyperparameters.
 - `batchsize`: The batchsize to use during training (default=32).
 """
 function MDN(; mixtures=5, layers=[128], η=1e-3, epochs=1, batchsize=32)
-    return MDN(mixtures, layers, η, epochs, batchsize, nothing)
+    return MDN(mixtures, layers, η, epochs, batchsize)
+end
+
+"""
+    Machine(hypers::MDN)
+
+Binds a collection of hyperparameters with a training state for fitting, evaluating, and predicting.
+
+# Parameters
+- `hypers`: The hyperparameters we want our model to conform to.
+"""
+function Machine(hypers::MDN)
+    return Machine(hypers, nothing, (learning_curve=Float64[], best_epoch=0, best_loss=Inf))
 end
 
 """
@@ -37,17 +62,95 @@ $(TYPEDSIGNATURES)
 Fit the model to the data given by X and Y.
 
 # Parameters
-- `model`: The MDN to be trained.
+- `machine`: The machine to be trained.
 - `X`: A dxn matrix where d is the number of features and n is the number of samples.
 - `Y`: A 1xn matrix where n is the number of samples.
 """
-function fit!(model::MDN, X::Matrix{<:Real}, Y::Matrix{<:Real})
-    fit!(model, Float64.(X), Float64.(Y))
+function fit!(machine::Machine, X::Matrix{<:Real}, Y::Matrix{<:Real})
+    fit!(machine, Float64.(X), Float64.(Y))
 end
 
-function fit!(model::MDN, X::Matrix{Float64}, Y::Matrix{Float64})
+function fit!(machine::Machine, X::Matrix{Float64}, Y::Matrix{Float64})
+    fitresult, report = _fit(machine.hypers, machine.fitresult, X, Y)
+    machine.fitresult = fitresult
+    machine.report = (
+        learning_curve=vcat(machine.report.learning_curve, report.learning_curve), 
+        best_epoch=report.best_epoch, 
+        best_loss=report.best_loss )
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Predict the full conditional distribution P(Y|X).
+
+# Parameters
+- `machine`: The machine with which we want to generate a prediction.
+- `X`: A dxn matrix where d is the number of features and n is the number of samples.
+
+# Returns
+Returns a vector of Distributions.MixtureModel objects representing the conditional distribution for each sample.
+"""
+function predict(machine::Machine, X::Matrix{<:Real})
+    return predict(machine, Float64.(X))
+end
+
+function predict(machine::Machine, X::Matrix{Float64})
+    @assert !isnothing(machine.fitresult) "Error: Must call fit!(machine, X, Y) before predicting!"
+    return _predict(machine.fitresult, X)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Predict the mean of the conditional distribution P(Y|X). 
+
+# Parameters
+- `machine`: The machine with which we want to generate a prediction.
+- `X`: A dxn matrix where d is the number of features and n is the number of samples.
+
+# Returns
+Returns a vector of real numbers representing the mean of the conditional distribution P(Y|X) for each sample.
+"""
+function predict_mean(machine::Machine, X::Matrix{<:Real})
+    return predict_mean(machine, Float64.(X))
+end
+
+function predict_mean(machine::Machine, X::Matrix{Float64})
+    @assert !isnothing(machine.fitresult) "Error: Must call fit!(machine, X, Y) before predicting!"
+    return _predict(machine.fitresult, X) .|> mean
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Predict the mean of the Gaussian with the largest prior in the conditional distribution P(Y|X). 
+
+# Parameters
+- `machine`: The machine with which we want to generate a prediction.
+- `X`: A dxn matrix where d is the number of features and n is the number of samples.
+
+# Returns
+Returns a vector of real numbers representing the mean of the gaussian with the largest prior for each sample.
+"""
+function predict_mode(machine::Machine, X::Matrix{<:Real})
+    return predict_mode(machine, Float64.(X))
+end
+
+function predict_mode(machine::Machine, X::Matrix{Float64})
+    @assert !isnothing(machine.fitresult) "Error: Must call fit!(machine, X, Y) before predicting!"
+    return _predict_mode(machine.fitresult, X)
+end
+
+
+#########################
+#### PRIVATE METHODS ####
+#########################
+
+
+function _fit(model::MDN, fitresult::Union{Nothing, MixtureDensityNetwork}, X::Matrix{Float64}, Y::Matrix{Float64})
 	# Create Model
-	m = isnothing(model.fitresult) ? MixtureDensityNetwork(size(X, 1), model.layers, model.mixtures) : model.fitresult
+    m = isnothing(fitresult) ? MixtureDensityNetwork(size(X, 1), model.layers, model.mixtures) : fitresult
 
     # Define Optimizer
     opt = Flux.Adam(model.η)
@@ -59,6 +162,7 @@ function fit!(model::MDN, X::Matrix{Float64}, Y::Matrix{Float64})
     data = Flux.DataLoader((X, Y); batchsize=model.batchsize, shuffle=true)
 
 	# Iterate Over Epochs
+    best_model = deepcopy(m)
     learning_curve = Float64[]
     @progress for epoch in 1:model.epochs
 
@@ -80,34 +184,21 @@ function fit!(model::MDN, X::Matrix{Float64}, Y::Matrix{Float64})
 
         # Add Average Loss To Learning Curve
         push!(learning_curve, mean(losses))
+
+        # Save Best Performing Model
+        if length(learning_curve) == 1 || learning_curve[end] < minimum(learning_curve[1:end-1])
+            best_model = deepcopy(m)
+        end
+
     end
 
-    # Save Fitted Model
-    model.fitresult = m
-
-    # Return Learning Curve
-    return learning_curve
+    # Return Results
+    report = (learning_curve=learning_curve, best_epoch=argmin(learning_curve), best_loss=minimum(learning_curve))
+    return best_model, report
 end
 
-"""
-$(TYPEDSIGNATURES)
-
-Predict the full conditional distribution P(Y|X).
-
-# Parameters
-- `model`: The MDN with which we want to generate a prediction.
-- `X`: A dxn matrix where d is the number of features and n is the number of samples.
-
-# Returns
-Returns a vector of Distributions.MixtureModel objects representing the conditional distribution for each sample.
-"""
-function predict(model::MDN, X::Matrix{<:Real})
-    predict(model, Float64.(X))
-end
-
-function predict(model::MDN, X::Matrix{Float64})
-    @assert !isnothing(model.fitresult) "Error: Must call fit!(model, X, Y) before predicting!"
-    μ, σ, pi = model.fitresult(X)
+function _predict(fitresult::MixtureDensityNetwork, X::Matrix{Float64})
+    μ, σ, pi = fitresult(X)
 	dists = Distributions.MixtureModel[]
 	for i in eachindex(μ[1,:])
 		d = Distributions.MixtureModel(Distributions.Normal.(μ[:,i], σ[:,i]), pi[:,i])
@@ -116,52 +207,16 @@ function predict(model::MDN, X::Matrix{Float64})
 	return dists
 end
 
-"""
-$(TYPEDSIGNATURES)
-
-Predict the mean of the conditional distribution P(Y|X). 
-
-# Parameters
-- `model`: The MDN with which we want to generate a prediction.
-- `X`: A dxn matrix where d is the number of features and n is the number of samples.
-
-# Returns
-Returns a vector of real numbers representing the mean of the conditional distribution P(Y|X) for each sample.
-"""
-function predict_mean(model::MDN, X::Matrix{<:Real})
-    predict_mean(model, Float64.(X))
+function _predict_mean(fitresult::MixtureDensityNetwork, X::Matrix{Float64})
+    return _predict(fitresult, X) .|> mean
 end
 
-function predict_mean(model::MDN, X::Matrix{Float64})
-    @assert !isnothing(model.fitresult) "Error: Must call fit!(model, X, Y) before predicting!"
-    return predict(model, X) .|> mean
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Predict the mean of the Gaussian with the largest prior in the conditional distribution P(Y|X). 
-
-# Parameters
-- `model`: The MDN with which we want to generate a prediction.
-- `X`: A dxn matrix where d is the number of features and n is the number of samples.
-
-# Returns
-Returns a vector of real numbers representing the mean of the gaussian with the largest prior for each sample.
-"""
-function predict_mode(model::MDN, X::Matrix{<:Real})
-    predict_mode(model, Float64.(X))
-end
-
-function predict_mode(model::MDN, X::Matrix{Float64})
-    @assert !isnothing(model.fitresult) "Error: Must call fit!(model, X, Y) before predicting!"
-    
-    # Run Forward Pass
-    μ, σ, π = model.fitresult(X)
-
-    # Find The Maximum Priors For Each Observation
-    max_priors = mapslices(argmax, π, dims=1)[1,:]
-
-    # Extract The Mode Of The Distribution Matching The Max Prior
+function _predict_mode(fitresult::MixtureDensityNetwork, X::Matrix{Float64})
+    μ, σ, w = fitresult(X)
+    max_priors = mapslices(argmax, w, dims=1)[1,:]
     return [μ[max_prior,i] for (i, max_prior) in enumerate(max_priors)]
+end
+
+function _predict_median(fitresult::MixtureDensityNetwork, X::Matrix{Float64})
+    return _predict(fitresult, X) .|> median
 end
