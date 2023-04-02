@@ -41,8 +41,8 @@ Fit the model to the data given by X and Y.
 - `X`: A dxn matrix where d is the number of features and n is the number of samples.
 - `Y`: A 1xn matrix where n is the number of samples.
 """
-function fit!(model::MDN, X::Matrix{<:Number}, Y::Matrix{<:Number})
-    fit!(model, Float32.(X), Float32.(Y))
+function fit!(model::MDN, X::Matrix{<:Real}, Y::Matrix{<:Real})
+    fit!(model, Float64.(X), Float64.(Y))
 end
 
 function fit!(model::MDN, X::Matrix{Float64}, Y::Matrix{Float64})
@@ -101,8 +101,8 @@ Predict the full conditional distribution P(Y|X).
 # Returns
 Returns a vector of Distributions.MixtureModel objects representing the conditional distribution for each sample.
 """
-function predict(model::MDN, X::Matrix{<:Number})
-    predict(model, Float32.(X))
+function predict(model::MDN, X::Matrix{<:Real})
+    predict(model, Float64.(X))
 end
 
 function predict(model::MDN, X::Matrix{Float64})
@@ -128,8 +128,8 @@ Predict the mean of the conditional distribution P(Y|X).
 # Returns
 Returns a vector of real numbers representing the mean of the conditional distribution P(Y|X) for each sample.
 """
-function predict_mean(model::MDN, X::Matrix{<:Number})
-    predict_mean(model, Float32.(X))
+function predict_mean(model::MDN, X::Matrix{<:Real})
+    predict_mean(model, Float64.(X))
 end
 
 function predict_mean(model::MDN, X::Matrix{Float64})
@@ -149,8 +149,8 @@ Predict the mean of the Gaussian with the largest prior in the conditional distr
 # Returns
 Returns a vector of real numbers representing the mean of the gaussian with the largest prior for each sample.
 """
-function predict_mode(model::MDN, X::Matrix{<:Number})
-    predict_mode(model, Float32.(X))
+function predict_mode(model::MDN, X::Matrix{<:Real})
+    predict_mode(model, Float64.(X))
 end
 
 function predict_mode(model::MDN, X::Matrix{Float64})

@@ -13,5 +13,4 @@ include("interface.jl")
 
 export likelihood_loss, MDN, fit!, predict, predict_mean, predict_mode
 
-
 end

@@ -35,17 +35,14 @@ function MixtureDensityNetwork(input::Int, layers::Vector{Int}, mixtures::Int)
     return MixtureDensityNetwork(hidden_layer, μ, Σ, π)
 end
 
-"MixtureModel forward pass."
+function (m::MixtureDensityNetwork)(X::AbstractMatrix{<:Real})
+    Float64.(X) |> m
+end
+
 function (m::MixtureDensityNetwork)(X::AbstractMatrix{Float64})
-    # Forward Pass
     h = m.hidden(X)
     μ = m.μ(h)
     Σ = m.Σ(h)
     π = m.π(h)
     μ, Σ, π
-end
-
-"MixtureModel forward pass."
-function (m::MixtureDensityNetwork)(X::AbstractMatrix{<:Number})
-    Float32.(X) |> m
 end

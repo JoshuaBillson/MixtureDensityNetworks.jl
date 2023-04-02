@@ -1,6 +1,6 @@
 push!(LOAD_PATH, "../src")
 
-using MixtureDensityNetworks, Distributions, CairoMakie
+using MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLoggers
 
 const n_samples = 1000
 const epochs = 1000
@@ -18,7 +18,9 @@ function main()
     model = MDN(epochs=epochs, mixtures=mixtures, layers=layers)
 
     # Fit Model
-    lc = fit!(model, X, Y)
+    lc = with_logger(TerminalLogger()) do 
+        fit!(model, X, Y)
+    end
 
     # Plot Learning Curve
     fig, _, _ = lines(1:epochs, lc, axis=(;xlabel="Epochs", ylabel="Loss"))
