@@ -9,7 +9,7 @@ Mixture Density Networks (MDNs) were first proposed by [Bishop (1994)](https://p
 
 # Example
 
-Below we provide an example for fitting an MDN to the visualized one-to-many distribution.
+Below is an example of fitting an MDN to the visualized one-to-many distribution.
 
 ![](https://github.com/JoshuaBillson/MixtureDensityNetworks.jl/blob/main/docs/src/figures/PredictedDistribution.png?raw=true)
 
