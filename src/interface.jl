@@ -1,12 +1,4 @@
-"""
-$(TYPEDEF)
-
-The hyperparameters defining the classical MDN model.
-
-# Parameters
-$(TYPEDFIELDS)
-"""
-mutable struct MDN
+mutable struct MDN <: MLJModelInterface.Probabilistic
     mixtures::Int
     layers::Vector{Int}
     η::Float64
@@ -212,9 +204,9 @@ function _predict_mean(fitresult::MixtureDensityNetwork, X::Matrix{Float64})
 end
 
 function _predict_mode(fitresult::MixtureDensityNetwork, X::Matrix{Float64})
-    μ, σ, w = fitresult(X)
-    max_priors = mapslices(argmax, w, dims=1)[1,:]
-    return [μ[max_prior,i] for (i, max_prior) in enumerate(max_priors)]
+    dists = _predict(fitresult, X)
+    max_μ = [pdf.(dist, [component.μ for component in dist.components]) |> argmax for dist in dists]
+    return [dist.components[μ].μ for (μ, dist) in zip(max_μ, dists)]
 end
 
 function _predict_median(fitresult::MixtureDensityNetwork, X::Matrix{Float64})

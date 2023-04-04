@@ -1,5 +1,3 @@
-push!(LOAD_PATH, "../src")
-
 using MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLoggers
 
 const n_samples = 1000
@@ -18,7 +16,7 @@ function main()
     machine = MDN(epochs=epochs, mixtures=mixtures, layers=layers) |> Machine
 
     # Fit Model
-    report = with_logger(TerminalLogger()) do 
+    report = with_logger(ConsoleLogger()) do 
         fit!(machine, X, Y)
     end
 
@@ -42,4 +40,4 @@ function main()
     return machine
 end
 
-# main()
+main()
