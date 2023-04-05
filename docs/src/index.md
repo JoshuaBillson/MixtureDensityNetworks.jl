@@ -6,7 +6,7 @@ CurrentModule = MixtureDensityNetworks
 
 Mixture Density Networks (MDNs) were first proposed by [Bishop (1994)](https://publications.aston.ac.uk/id/eprint/373/1/NCRG_94_004.pdf). We can think of them as a specialized type of neural network, which are typically employed when our data has a lot of uncertainty or when the relationship between features and labels is one-to-many. Unlike a traditional neural network, which predicts a point-estimate equal to the mode of the learned conditional distribution P(Y|X), an MDN maintains the full condtional distribution by predicting the parameters of a Gaussian Mixture Model (GMM). The multi-modal nature of GMMs are precisely what makes MDNs so well-suited to modeling one-to-many relationships. This package aims to provide a simple interface for defining, training, and deploying MDNs.
 
-## Example
+# Example
 
 First, let's create our dataset. To properly demonstrate the power of MDNs, we'll generate a many-to-one dataset where each x-value can map to more than one y-value.
 ```julia
@@ -68,9 +68,7 @@ const layers = [128, 128]
 
 function main()
     # Generate Data
-    Y = rand(Uniform(-10.5, 10.5), 1, n_samples)
-    μ = 7sin.(0.75 .* Y) + 0.5 .* Y
-    X = rand.(Normal.(μ, 1.0))
+    X, Y = generate_data(n_samples)
 
     # Create Model
     model = MDN(epochs=epochs, mixtures=mixtures, layers=layers)
@@ -97,16 +95,4 @@ function main()
 end
 
 main()
-```
-
-## Index
-
-```@index
-```
-
-## API
-
-```@autodocs
-Modules = [MixtureDensityNetworks]
-Private = false
 ```
