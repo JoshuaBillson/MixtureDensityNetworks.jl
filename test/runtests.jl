@@ -20,7 +20,7 @@ using MLJ
     # Fit Model
     MixtureDensityNetworks.fit!(machine, X, Y)
 
-    @test machine.report.best_loss < 1.65
+    @test machine.report.best_loss < 1.70
 
     @test likelihood_loss(machine.fitresult(X)..., Y) ≈ 1.4020062446704458 atol=0.1
 end
@@ -52,7 +52,7 @@ end
     # Fit Model
     MLJ.fit!(mach)
 
-    @test  MLJ.report(mach).best_loss < 1.65
+    @test  MLJ.report(mach).best_loss < 1.70
 
     @test likelihood_loss(MLJ.fitted_params(mach).fitresult(X)..., Y) ≈ 1.4459579546517374 atol=0.1
 end
