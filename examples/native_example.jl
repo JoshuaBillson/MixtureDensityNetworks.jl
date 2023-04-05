@@ -8,15 +8,13 @@ const layers = [128, 128]
 
 function main()
     # Generate Data
-    Y = rand(Uniform(-10.5, 10.5), 1, n_samples)
-    μ = 7sin.(0.75 .* Y) + 0.5 .* Y
-    X = rand.(Normal.(μ, 1.0))
+    X, Y = generate_data(n_samples)
 
     # Create Model
     machine = MDN(epochs=epochs, mixtures=mixtures, layers=layers) |> Machine
 
     # Fit Model
-    report = with_logger(ConsoleLogger()) do 
+    report = with_logger(TerminalLogger()) do 
         fit!(machine, X, Y)
     end
 
@@ -40,4 +38,4 @@ function main()
     return machine
 end
 
-main()
+#main()

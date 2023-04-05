@@ -16,14 +16,14 @@ end
 Flux.@functor MixtureDensityNetwork
 
 """
-    MixtureDensityNetwork(input::Int, layers::Vector{Int}, mixtures::Int, dropout=0.0)
+$(TYPEDSIGNATURES)
 
 Construct a new MixtureDensityNetwork.
 
-# Examples
-```julia-repl
-julia> MixtureDensityNetwork(5, [512, 256, 128, 64], 5)
-```
+# Parameters
+- `input`: The dimension of the input features.
+- `layers`: The topolgy of the hidden layers, starting from the first layer.
+- `mixtures`: The number of Gaussian mixtures to use in the conditional distribution.
 """
 function MixtureDensityNetwork(input::Int, layers::Vector{Int}, mixtures::Int)
     # Define Weight Initializer

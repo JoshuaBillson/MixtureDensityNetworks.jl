@@ -123,7 +123,7 @@ Predict the mean of the Gaussian with the largest prior in the conditional distr
 - `X`: A dxn matrix where d is the number of features and n is the number of samples.
 
 # Returns
-Returns a vector of real numbers representing the mean of the gaussian with the largest prior for each sample.
+Returns a vector of real numbers representing the most significant mode for each sample.
 """
 function predict_mode(machine::Machine, X::Matrix{<:Real})
     return predict_mode(machine, Float64.(X))
@@ -132,6 +132,24 @@ end
 function predict_mode(machine::Machine, X::Matrix{Float64})
     @assert !isnothing(machine.fitresult) "Error: Must call fit!(machine, X, Y) before predicting!"
     return _predict_mode(machine.fitresult, X)
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Generate some synthetic data for testing purposes. 
+
+# Parameters
+- `n_samples`: The number of samples we want to generate.
+
+# Returns
+The sythetic features `X` and labels `Y` as a tuple `(X, Y)`.
+"""
+function generate_data(n_samples::Int)
+    Y = rand(Uniform(-10.5, 10.5), 1, n_samples)
+    μ = 7sin.(0.75 .* Y) + 0.5 .* Y
+    X = rand.(Normal.(μ, 1.0))
+    return X, Y
 end
 
 

@@ -1,3 +1,13 @@
+```@meta
+CurrentModule = MixtureDensityNetworks
+```
+
+# MLJ Compatibility
+
+This package implements the interface specified by [MLJModelInterface](https://github.com/JuliaAI/MLJModelInterface.jl) and is thus fully compatible
+with the MLJ ecosystem. Below is an example demonstrating the use of this package in conjunction with MLJ. 
+
+```julia
 using MixtureDensityNetworks, Distributions, Logging, TerminalLoggers, CairoMakie, MLJ
 
 const n_samples = 1000
@@ -48,6 +58,7 @@ function main()
     fig = Figure(resolution=(1000, 500))
     density(fig[1,1], rand(cond, 10000), npoints=10000)
     save("ConditionalDistribution.png", fig)
-
-    return mach
 end
+
+main()
+```
