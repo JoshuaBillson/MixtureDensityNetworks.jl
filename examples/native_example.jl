@@ -5,13 +5,12 @@ const epochs = 1000
 const mixtures = 6
 const layers = [128, 128]
 
-
 function main()
     # Generate Data
     X, Y = generate_data(n_samples)
 
     # Create Model
-    machine = MDN(epochs=epochs, mixtures=mixtures, layers=layers) |> Machine
+    machine = MixtureDensityNetworks.Machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers))
 
     # Fit Model
     report = with_logger(TerminalLogger()) do 
@@ -34,8 +33,6 @@ function main()
     fig = Figure(resolution=(1000, 500))
     density(fig[1,1], rand(cond, 10000), npoints=10000)
     save("ConditionalDistribution.png", fig)
-
-    return machine
 end
 
-#main()
+main()

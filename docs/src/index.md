@@ -4,7 +4,7 @@ CurrentModule = MixtureDensityNetworks
 
 # MixtureDensityNetworks
 
-Mixture Density Networks (MDNs) were first proposed by [Bishop (1994)](https://publications.aston.ac.uk/id/eprint/373/1/NCRG_94_004.pdf). We can think of them as a specialized type of neural network, which are typically employed when our data has a lot of uncertainty or when the relationship between features and labels is one-to-many. Unlike a traditional neural network, which predicts a point-estimate equal to the mode of the learned conditional distribution P(Y|X), an MDN maintains the full condtional distribution by predicting the parameters of a Gaussian Mixture Model (GMM). The multi-modal nature of GMMs are precisely what makes MDNs so well-suited to modeling one-to-many relationships. This package aims to provide a simple interface for defining, training, and deploying MDNs.
+This package provides a simple interface for defining, training, and deploying Mixture Density Networks (MDNs). MDNs were first proposed by [Bishop (1994)](https://publications.aston.ac.uk/id/eprint/373/1/NCRG_94_004.pdf). We can think of an MDN as a specialized type of Artificial Neural Network (ANN), which takes some features `X` and returns a distribution over the labels `Y` under a Gaussian Mixture Model (GMM). Unlike an ANN, MDNs maintain the full conditional distribution P(Y|X). This makes them particularly well-suited for situations where we want to maintain some measure of the uncertainty in our predictions. Moreover, because GMMs can represent multimodal distributions, MDNs are capable of modelling one-to-many relationships, which occurs when each input `X` can be associated with more than one output `Y`. 
 
 # Example
 
@@ -14,9 +14,7 @@ using Distributions, CairoMakie, MixtureDensityNetworks
 
 const n_samples = 1000
 
-Y = rand(Uniform(-10.5, 10.5), 1, n_samples)
-μ = 7sin.(0.75 .* Y) + 0.5 .* Y
-X = rand.(Normal.(μ, 1.0))
+X, Y = generate_data(n_samples)
 
 fig, ax, plt = scatter(X[1,:], Y[1,:], markersize=5)
 ```
@@ -59,11 +57,11 @@ density(fig[1,1], rand(cond, 10000), npoints=10000)
 
 Below is a script for running the complete example.
 ```julia
-using MixtureDensityNetworks, Distributions, CairoMakie
+using MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLoggers
 
 const n_samples = 1000
 const epochs = 1000
-const mixtures = 5
+const mixtures = 6
 const layers = [128, 128]
 
 function main()
@@ -71,24 +69,26 @@ function main()
     X, Y = generate_data(n_samples)
 
     # Create Model
-    model = MDN(epochs=epochs, mixtures=mixtures, layers=layers)
+    machine = MixtureDensityNetworks.Machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers))
 
     # Fit Model
-    lc = fit!(model, X, Y)
+    report = with_logger(TerminalLogger()) do 
+        fit!(machine, X, Y)
+    end
 
     # Plot Learning Curve
-    fig, _, _ = lines(1:epochs, lc, axis=(;xlabel="Epochs", ylabel="Loss"))
+    fig, _, _ = lines(1:epochs, report.learning_curve, axis=(;xlabel="Epochs", ylabel="Loss"))
     save("LearningCurve.png", fig)
 
     # Plot Learned Distribution
-    Ŷ = predict(model, X)
+    Ŷ = predict(machine, X)
     fig, ax, plt = scatter(X[1,:], rand.(Ŷ), markersize=4, label="Predicted Distribution")
     scatter!(ax, X[1,:], Y[1,:], markersize=3, label="True Distribution")
     axislegend(ax, position=:lt)
     save("PredictedDistribution.png", fig)
 
     # Plot Conditional Distribution
-    cond = predict(model, reshape([-2.0], (1,1)))[1]
+    cond = predict(machine, reshape([-2.0], (1,1)))[1]
     fig = Figure(resolution=(1000, 500))
     density(fig[1,1], rand(cond, 10000), npoints=10000)
     save("ConditionalDistribution.png", fig)

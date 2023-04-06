@@ -48,6 +48,6 @@ function main()
     fig = Figure(resolution=(1000, 500))
     density(fig[1,1], rand(cond, 10000), npoints=10000)
     save("ConditionalDistribution.png", fig)
-
-    return mach
 end
+
+main()

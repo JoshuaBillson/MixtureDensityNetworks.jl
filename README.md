@@ -5,13 +5,16 @@
 [![Build Status](https://github.com/JoshuaBillson/MixtureDensityNetworks.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JoshuaBillson/MixtureDensityNetworks.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/JoshuaBillson/MixtureDensityNetworks.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JoshuaBillson/MixtureDensityNetworks.jl)
 
-Mixture Density Networks (MDNs) were first proposed by [Bishop (1994)](https://publications.aston.ac.uk/id/eprint/373/1/NCRG_94_004.pdf). We can think of them as a specialized type of neural network, which are typically employed when our data has a lot of uncertainty or when the relationship between features and labels is one-to-many. Unlike a traditional neural network, which predicts a point-estimate equal to the mode of the learned conditional distribution P(Y|X), an MDN maintains the full condtional distribution by predicting the parameters of a Gaussian Mixture Model (GMM). The multi-modal nature of GMMs are precisely what makes MDNs so well-suited to modeling one-to-many relationships. This package aims to provide a simple interface for defining, training, and deploying MDNs.
-
-# Example
-
-Below is an example of fitting an MDN to the visualized one-to-many distribution.
+This package provides a simple interface for defining, training, and deploying Mixture Density Networks (MDNs). MDNs were first proposed by [Bishop (1994)](https://publications.aston.ac.uk/id/eprint/373/1/NCRG_94_004.pdf). We can think of an MDN as a specialized type of Artificial Neural Network (ANN), which takes some features `X` and returns a distribution over the labels `Y` under a Gaussian Mixture Model (GMM). Unlike an ANN, MDNs maintain the full conditional distribution P(Y|X). This makes them particularly well-suited for situations where we want to maintain some measure of the uncertainty in our predictions. Moreover, because GMMs can represent multimodal distributions, MDNs are capable of modelling one-to-many relationships, which occurs when each input `X` can be associated with more than one output `Y`. 
 
 ![](https://github.com/JoshuaBillson/MixtureDensityNetworks.jl/blob/main/docs/src/figures/PredictedDistribution.png?raw=true)
+
+# MLJ Compatibility
+
+This package implements the interface specified by [MLJModelInterface](https://github.com/JuliaAI/MLJModelInterface.jl) and is thus fully compatible
+with the MLJ ecosystem. Below is an example demonstrating the use of this package in conjunction with MLJ. 
+
+# Example (Native Interface)
 
 ```julia
 using MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLoggers
@@ -21,16 +24,15 @@ const epochs = 1000
 const mixtures = 6
 const layers = [128, 128]
 
-
 function main()
     # Generate Data
     X, Y = generate_data(n_samples)
 
     # Create Model
-    machine = MDN(epochs=epochs, mixtures=mixtures, layers=layers) |> Machine
+    machine = MixtureDensityNetworks.Machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers))
 
     # Fit Model
-    report = with_logger(ConsoleLogger()) do 
+    report = with_logger(TerminalLogger()) do 
         fit!(machine, X, Y)
     end
 
@@ -50,8 +52,64 @@ function main()
     fig = Figure(resolution=(1000, 500))
     density(fig[1,1], rand(cond, 10000), npoints=10000)
     save("ConditionalDistribution.png", fig)
+end
 
-    return machine
+main()
+```
+
+# Example (MLJ Interface)
+
+```julia
+using MixtureDensityNetworks, Distributions, Logging, TerminalLoggers, CairoMakie, MLJ
+
+const n_samples = 1000
+const epochs = 1000
+const mixtures = 6
+const layers = [128, 128]
+
+function main()
+    # Generate Data
+    X, Y = generate_data(n_samples)
+
+    # Create Model
+    mach = MLJ.machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers), MLJ.table(X'), Y[1,:])
+
+    # Evaluate Model
+    with_logger(TerminalLogger()) do 
+        @info "Evaluating..."
+        evaluation = MLJ.evaluate!(
+            mach, 
+            resampling=Holdout(shuffle=true), 
+            measure=[rsq, rmse, mae, mape], 
+            operation=MLJ.predict_mean
+        )
+        names = ["R²", "RMSE", "MAE", "MAPE"]
+        metrics = round.(evaluation.measurement, digits=3)
+        @info "Metrics: " * join(["$name: $metric" for (name, metric) in zip(names, metrics)], ", ")
+    end
+
+    # Fit Model
+    with_logger(TerminalLogger()) do 
+        @info "Training..."
+        MLJ.fit!(mach)
+    end
+
+    # Plot Learning Curve
+    fig, _, _ = lines(1:epochs, MLJ.training_losses(mach), axis=(;xlabel="Epochs", ylabel="Loss"))
+    save("LearningCurve.png", fig)
+
+    # Plot Learned Distribution
+    Ŷ = MLJ.predict(mach) .|> rand
+    fig, ax, plt = scatter(X[1,:], Ŷ, markersize=4, label="Predicted Distribution")
+    scatter!(ax, X[1,:], Y[1,:], markersize=3, label="True Distribution")
+    axislegend(ax, position=:lt)
+    save("PredictedDistribution.png", fig)
+
+    # Plot Conditional Distribution
+    cond = MLJ.predict(mach, MLJ.table(reshape([-2.1], (1,1))))[1]
+    fig = Figure(resolution=(1000, 500))
+    density(fig[1,1], rand(cond, 10000), npoints=10000)
+    save("ConditionalDistribution.png", fig)
 end
 
 main()
