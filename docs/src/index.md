@@ -10,7 +10,7 @@ This package provides a simple interface for defining, training, and deploying M
 
 First, let's create our dataset. To properly demonstrate the power of MDNs, we'll generate a many-to-one dataset where each x-value can map to more than one y-value.
 ```julia
-using Distributions, CairoMakie, MixtureDensityNetworks
+using Flux, Distributions, CairoMakie, MixtureDensityNetworks
 
 const n_samples = 1000
 
@@ -21,16 +21,19 @@ fig, ax, plt = scatter(X[1,:], Y[1,:], markersize=5)
 
 ![](figures/Data.png)
 
-Now we'll define our model and training parameters. For this example, we construct a network with 2 hidden layers of size 128, 5 Gaussian 
-mixtures, and we train for 1000 epochs. All other hyperparameters are set to their default values.
+Now we'll define a standard univariate MDN. For this example, we construct a network with 2 hidden layers of size 128, which outputs a distribution
+with 5 Gaussian mixtures.
 ```julia
-model = MDN(epochs=1000, mixtures=5, layers=[128, 128])
+model = MixtureDensityNetwork(1, 1, [128, 128], 5)
 ```
 
-We can fit our model to our training data by calling `fit!(model, X, Y)`. This method returns the learning curve, which we plot below.
+We can fit our model to our data by calling `fit!(m, X, Y; opt=Flux.Adam(), batchsize=32, epochs=100)`. We specify that we want to train our model for
+500 epochs with the Adam optimiser and a batch size of 128. This method returns the model with the lowest loss as its first value and a named tuple 
+containing the learning curve, best epoch, and lowest loss observed during training as its second value. We can use Makie's `lines` method to visualize
+the learning curve.
 ```julia
-lc = fit!(model, X, Y)
-fig, _, _ = lines(1:1000, lc, axis=(;xlabel="Epochs", ylabel="Loss"))
+model, report = tMixtureDensityNetworks.fit!(model, X, Y; epochs=500, opt=Flux.Adam(1e-3), batchsize=128)
+fig, _, _ = lines(1:500, lc, axis=(;xlabel="Epochs", ylabel="Loss"))
 ```
 
 ![](figures/LearningCurve.png)
@@ -38,8 +41,8 @@ fig, _, _ = lines(1:1000, lc, axis=(;xlabel="Epochs", ylabel="Loss"))
 Let's evaluate how well our model learned to replicate our data by plotting both the learned and true distributions. We observe that our model
 has indeed learned to replicate the true distribution.
 ```julia
-Ŷ = predict(model, X)
-fig, ax, plt = scatter(X[1,:], rand.(Ŷ), markersize=3, label="Predicted Distribution")
+Ŷ = model(X)
+fig, ax, plt = scatter(X[1,:], rand.(Ŷ), markersize=4, label="Predicted Distribution")
 scatter!(ax, X[1,:], Y[1,:], markersize=3, label="True Distribution")
 axislegend(ax, position=:lt)
 ```
@@ -48,7 +51,7 @@ axislegend(ax, position=:lt)
 
 We can also visualize the conditional distribution predicted by our model at x = -2.0.
 ```julia
-cond = predict(model, reshape([-2.0], (1,1)))[1]
+cond = model(reshape([-2.1], (1,1)))[1]
 fig = Figure(resolution=(1000, 500))
 density(fig[1,1], rand(cond, 10000), npoints=10000)
 ```
@@ -61,7 +64,8 @@ using MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLogger
 
 const n_samples = 1000
 const epochs = 1000
-const mixtures = 6
+const batchsize = 128
+const mixtures = 8
 const layers = [128, 128]
 
 function main()
@@ -69,11 +73,11 @@ function main()
     X, Y = generate_data(n_samples)
 
     # Create Model
-    machine = MixtureDensityNetworks.Machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers))
+    model = MixtureDensityNetwork(1, 1, layers, mixtures)
 
     # Fit Model
-    report = with_logger(TerminalLogger()) do 
-        fit!(machine, X, Y)
+    model, report = with_logger(TerminalLogger()) do 
+        MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=batchsize)
     end
 
     # Plot Learning Curve
@@ -81,14 +85,14 @@ function main()
     save("LearningCurve.png", fig)
 
     # Plot Learned Distribution
-    Ŷ = predict(machine, X)
+    Ŷ = model(X)
     fig, ax, plt = scatter(X[1,:], rand.(Ŷ), markersize=4, label="Predicted Distribution")
     scatter!(ax, X[1,:], Y[1,:], markersize=3, label="True Distribution")
     axislegend(ax, position=:lt)
     save("PredictedDistribution.png", fig)
 
     # Plot Conditional Distribution
-    cond = predict(machine, reshape([-2.0], (1,1)))[1]
+    cond = model(reshape([-2.1], (1,1)))[1]
     fig = Figure(resolution=(1000, 500))
     density(fig[1,1], rand(cond, 10000), npoints=10000)
     save("ConditionalDistribution.png", fig)

@@ -73,6 +73,22 @@ function generate_data(n_samples::Int)
     return X, Y
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Predict the point associated with the highest probability in the conditional distribution P(Y|X).
+
+# Parameters
+- `m`: The model from which we want to generate a prediction.
+- `X`: The input features to be passed to `m`. Expected to be a matrix with dimensions d x n where d is the length of each feature vector.
+
+# Returns
+The mode of each distribution returned by `m(X)`.
+"""
+function predict_mode(m::MixtureDensityNetwork, X::Matrix{<:Real})
+    return predict_mode(m, Float64.(X))
+end
+
 function predict_mode(m::MixtureDensityNetwork, X::Matrix{Float64})
     dists = m(X)
     max_μ = [map(x->pdf(dist, x), [component.μ for component in dist.components]) |> argmax for dist in dists]

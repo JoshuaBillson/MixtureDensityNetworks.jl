@@ -1,4 +1,4 @@
-using MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLoggers
+using Flux, MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLoggers
 
 const n_samples = 1000
 const epochs = 1000
@@ -36,4 +36,4 @@ function main()
     save("ConditionalDistribution.png", fig)
 end
 
-#main()
+main()

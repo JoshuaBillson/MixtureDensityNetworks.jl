@@ -8,11 +8,14 @@ This package implements the interface specified by [MLJModelInterface](https://g
 with the MLJ ecosystem. Below is an example demonstrating the use of this package in conjunction with MLJ. 
 
 ```julia
-using MixtureDensityNetworks, Distributions, Logging, TerminalLoggers, CairoMakie, MLJ
+using MixtureDensityNetworks, Distributions, Logging, TerminalLoggers, CairoMakie, MLJ, Random
+
+Random.seed!(123)
 
 const n_samples = 1000
-const epochs = 1000
-const mixtures = 6
+const epochs = 500
+const batchsize = 128
+const mixtures = 8
 const layers = [128, 128]
 
 function main()
@@ -20,9 +23,9 @@ function main()
     X, Y = generate_data(n_samples)
 
     # Create Model
-    mach = MLJ.machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers), MLJ.table(X'), Y[1,:])
+    mach = MLJ.machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers, batchsize=batchsize), MLJ.table(X'), Y[1,:])
 
-    # Evaluate Model
+    # Fit Model on Training Data, Then Evaluate on Test
     with_logger(TerminalLogger()) do 
         @info "Evaluating..."
         evaluation = MLJ.evaluate!(
@@ -36,7 +39,7 @@ function main()
         @info "Metrics: " * join(["$name: $metric" for (name, metric) in zip(names, metrics)], ", ")
     end
 
-    # Fit Model
+    # Fit Model on Entire Dataset
     with_logger(TerminalLogger()) do 
         @info "Training..."
         MLJ.fit!(mach)
