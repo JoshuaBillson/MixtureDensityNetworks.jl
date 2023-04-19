@@ -1,7 +1,6 @@
 module MixtureDensityNetworks
 
 import Flux
-import Zygote
 using Distributions
 using Statistics
 using ProgressLogging
