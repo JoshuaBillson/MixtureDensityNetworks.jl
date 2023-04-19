@@ -1,137 +1,58 @@
-mutable struct MDN <: MLJModelInterface.Probabilistic
-    mixtures::Int
-    layers::Vector{Int}
-    η::Float64
-    epochs::Int
-    batchsize::Int
-end
-
-"""
-$(TYPEDEF)
-
-A struct for associating a model's hyperparameters with its training state.
-
-# Parameters
-$(TYPEDFIELDS)
-"""
-mutable struct Machine
-    hypers::MDN
-    fitresult::Union{MixtureDensityNetwork,Nothing}
-    report::NamedTuple{(:learning_curve, :best_epoch, :best_loss), Tuple{Vector{Float64}, Int, Float64}}
-end
-
-"""
-    MDN(; mixtures=5, layers=[128], η=1e-3, epochs=1, batchsize=32)
-
-Defines an MDN model with the given hyperparameters.
-
-# Parameters
-- `mixtures`: The number of gaussian mixtures to use in estimating the conditional distribution (default=5).
-- `layers`: A vector indicating the number of nodes in each of the hidden layers (default=[128,]).
-- `η`: The learning rate to use when training the model (default=1e-3).
-- `epochs`: The number of epochs to train the model (default=1).
-- `batchsize`: The batchsize to use during training (default=32).
-"""
-function MDN(; mixtures=5, layers=[128], η=1e-3, epochs=1, batchsize=32)
-    return MDN(mixtures, layers, η, epochs, batchsize)
-end
-
-"""
-    Machine(hypers::MDN)
-
-Binds a collection of hyperparameters with a training state for fitting, evaluating, and predicting.
-
-# Parameters
-- `hypers`: The hyperparameters we want our model to conform to.
-"""
-function Machine(hypers::MDN)
-    return Machine(hypers, nothing, (learning_curve=Float64[], best_epoch=0, best_loss=Inf))
-end
-
 """
 $(TYPEDSIGNATURES)
 
 Fit the model to the data given by X and Y.
 
 # Parameters
-- `machine`: The machine to be trained.
+- `m`: The model to be trained.
 - `X`: A dxn matrix where d is the number of features and n is the number of samples.
 - `Y`: A 1xn matrix where n is the number of samples.
+- `opt`: The optimization algorithm to use during training (default = Adam(1e-3)).
+- `batchsize`: The batch size dor each iteration of gradient descent (default = 32).
+- `epochs`: The number of epochs to train for (default = 100).
 """
-function fit!(machine::Machine, X::Matrix{<:Real}, Y::Matrix{<:Real})
-    fit!(machine, Float64.(X), Float64.(Y))
+function fit!(m, X::Matrix{<:Real}, Y::Matrix{<:Real}; opt=Flux.Adam(), batchsize=32, epochs=100)
+    fit!(m, Float64.(X), Float64.(Y); opt=opt, batchsize=batchsize, epochs=epochs)
 end
 
-function fit!(machine::Machine, X::Matrix{Float64}, Y::Matrix{Float64})
-    fitresult, report = _fit(machine.hypers, machine.fitresult, X, Y)
-    machine.fitresult = fitresult
-    machine.report = (
-        learning_curve=vcat(machine.report.learning_curve, report.learning_curve), 
-        best_epoch=report.best_epoch, 
-        best_loss=report.best_loss )
-end
+function fit!(m, X::Matrix{Float64}, Y::Matrix{Float64}; opt=Flux.Adam(), batchsize=32, epochs=100)
+    # Get Parameters
+    params = Flux.params(m)
 
-"""
-$(TYPEDSIGNATURES)
+    # Prepare Training Data
+    data = Flux.DataLoader((X, Y); batchsize=batchsize, shuffle=true)
 
-Predict the full conditional distribution P(Y|X).
+    # Iterate Over Epochs
+    best_model = deepcopy(m)
+    learning_curve = Float64[]
+    @progress for epoch in 1:epochs
 
-# Parameters
-- `machine`: The machine with which we want to generate a prediction.
-- `X`: A dxn matrix where d is the number of features and n is the number of samples.
+        # Iterate Over Data
+        losses = Float64[]
+        for (x, y) in data
 
-# Returns
-Returns a vector of Distributions.MixtureModel objects representing the conditional distribution for each sample.
-"""
-function predict(machine::Machine, X::Matrix{<:Real})
-    return predict(machine, Float64.(X))
-end
+            # Compute Loss and Gradient
+            l, grad = Flux.withgradient(() -> likelihood_loss(m(x), y), params)
 
-function predict(machine::Machine, X::Matrix{Float64})
-    @assert !isnothing(machine.fitresult) "Error: Must call fit!(machine, X, Y) before predicting!"
-    return _predict(machine.fitresult, X)
-end
+            # Update Parameters
+            Flux.update!(opt, params, grad)
 
-"""
-$(TYPEDSIGNATURES)
+            # Save Loss
+            push!(losses, l)
+        end
 
-Predict the mean of the conditional distribution P(Y|X). 
+        # Add Average Loss To Learning Curve
+        push!(learning_curve, mean(losses))
 
-# Parameters
-- `machine`: The machine with which we want to generate a prediction.
-- `X`: A dxn matrix where d is the number of features and n is the number of samples.
+        # Save Best Performing Model
+        if length(learning_curve) == 1 || learning_curve[end] < minimum(learning_curve[1:end-1])
+            best_model = deepcopy(m)
+        end
+    end
 
-# Returns
-Returns a vector of real numbers representing the mean of the conditional distribution P(Y|X) for each sample.
-"""
-function predict_mean(machine::Machine, X::Matrix{<:Real})
-    return predict_mean(machine, Float64.(X))
-end
-
-function predict_mean(machine::Machine, X::Matrix{Float64})
-    @assert !isnothing(machine.fitresult) "Error: Must call fit!(machine, X, Y) before predicting!"
-    return _predict(machine.fitresult, X) .|> mean
-end
-
-"""
-$(TYPEDSIGNATURES)
-
-Predict the mean of the Gaussian with the largest prior in the conditional distribution P(Y|X). 
-
-# Parameters
-- `machine`: The machine with which we want to generate a prediction.
-- `X`: A dxn matrix where d is the number of features and n is the number of samples.
-
-# Returns
-Returns a vector of real numbers representing the most significant mode for each sample.
-"""
-function predict_mode(machine::Machine, X::Matrix{<:Real})
-    return predict_mode(machine, Float64.(X))
-end
-
-function predict_mode(machine::Machine, X::Matrix{Float64})
-    @assert !isnothing(machine.fitresult) "Error: Must call fit!(machine, X, Y) before predicting!"
-    return _predict_mode(machine.fitresult, X)
+    # Return Results
+    report = (learning_curve=learning_curve, best_epoch=argmin(learning_curve), best_loss=minimum(learning_curve))
+    return best_model, report
 end
 
 """
@@ -152,81 +73,8 @@ function generate_data(n_samples::Int)
     return X, Y
 end
 
-
-#########################
-#### PRIVATE METHODS ####
-#########################
-
-
-function _fit(model::MDN, fitresult::Union{Nothing, MixtureDensityNetwork}, X::Matrix{Float64}, Y::Matrix{Float64})
-	# Create Model
-    m = isnothing(fitresult) ? MixtureDensityNetwork(size(X, 1), model.layers, model.mixtures) : fitresult
-
-    # Define Optimizer
-    opt = Flux.Adam(model.η)
-
-    # Get Parameters
-    params = Flux.params(m)
-
-    # Prepare Training Data
-    data = Flux.DataLoader((X, Y); batchsize=model.batchsize, shuffle=true)
-
-	# Iterate Over Epochs
-    best_model = deepcopy(m)
-    learning_curve = Float64[]
-    @progress for epoch in 1:model.epochs
-
-        # Iterate Over Data
-        losses = Float64[]
-        for (x, y) in data
-
-            # Compute Loss and Gradient
-            l, grad = Flux.withgradient(params) do 
-                likelihood_loss(m(x)..., y)
-            end
-
-            # Update Parameters
-            Flux.update!(opt, params, grad)
-
-            # Save Loss
-            push!(losses, l)
-        end
-
-        # Add Average Loss To Learning Curve
-        push!(learning_curve, mean(losses))
-
-        # Save Best Performing Model
-        if length(learning_curve) == 1 || learning_curve[end] < minimum(learning_curve[1:end-1])
-            best_model = deepcopy(m)
-        end
-
-    end
-
-    # Return Results
-    report = (learning_curve=learning_curve, best_epoch=argmin(learning_curve), best_loss=minimum(learning_curve))
-    return best_model, report
-end
-
-function _predict(fitresult::MixtureDensityNetwork, X::Matrix{Float64})
-    μ, σ, pi = fitresult(X)
-	dists = Distributions.MixtureModel[]
-	for i in eachindex(μ[1,:])
-		d = Distributions.MixtureModel(Distributions.Normal.(μ[:,i], σ[:,i]), pi[:,i])
-		push!(dists, d)
-	end
-	return dists
-end
-
-function _predict_mean(fitresult::MixtureDensityNetwork, X::Matrix{Float64})
-    return _predict(fitresult, X) .|> mean
-end
-
-function _predict_mode(fitresult::MixtureDensityNetwork, X::Matrix{Float64})
-    dists = _predict(fitresult, X)
-    max_μ = [pdf.(dist, [component.μ for component in dist.components]) |> argmax for dist in dists]
+function predict_mode(m::MixtureDensityNetwork, X::Matrix{Float64})
+    dists = m(X)
+    max_μ = [map(x->pdf(dist, x), [component.μ for component in dist.components]) |> argmax for dist in dists]
     return [dist.components[μ].μ for (μ, dist) in zip(max_μ, dists)]
-end
-
-function _predict_median(fitresult::MixtureDensityNetwork, X::Matrix{Float64})
-    return _predict(fitresult, X) .|> median
 end

@@ -5,3 +5,4 @@
 /docs/build/
 examples/*.png
 test/Manifest.toml
+*.png

@@ -1,3 +1,27 @@
+mutable struct MDN <: MLJModelInterface.Probabilistic
+    mixtures::Int
+    layers::Vector{Int}
+    η::Float64
+    epochs::Int
+    batchsize::Int
+end
+
+"""
+    MDN(; mixtures=5, layers=[128], η=1e-3, epochs=1, batchsize=32)
+
+Defines an MDN model with the given hyperparameters.
+
+# Parameters
+- `mixtures`: The number of gaussian mixtures to use in estimating the conditional distribution (default=5).
+- `layers`: A vector indicating the number of nodes in each of the hidden layers (default=[128,]).
+- `η`: The learning rate to use when training the model (default=1e-3).
+- `epochs`: The number of epochs to train the model (default=1).
+- `batchsize`: The batchsize to use during training (default=32).
+"""
+function MDN(; mixtures=5, layers=[128], η=1e-3, epochs=1, batchsize=32)
+    return MDN(mixtures, layers, η, epochs, batchsize)
+end
+
 function MLJModelInterface.reformat(::MDN, X, y) 
     return (matrix(X, transpose=true), reshape(y, (1,:)))
 end
@@ -7,7 +31,7 @@ function MLJModelInterface.reformat(::MDN, X)
 end
 
 function MLJModelInterface.selectrows(::MDN, I, Xmatrix, y)
-	return (Xmatrix[:,I], y[:,I])
+    return (Xmatrix[:,I], y[:,I])
 end
 
 function MLJModelInterface.selectrows(::MDN, I, Xmatrix)
@@ -15,46 +39,68 @@ function MLJModelInterface.selectrows(::MDN, I, Xmatrix)
 end
 
 function MLJModelInterface.clean!(model::MDN)
-	warning = ""
-	if model.mixtures <= 0
-		warning *= "Need mixtures > 0. Resetting mixtures=5. "
-		model.mixtures = 5
-	end
-	if isempty(model.layers)
-		warning *= "Need at least one hidden layer. Resetting layers=[128,]. "
-		model.layers = [128,]
-	end
-	if model.η <= 0
-		warning *= "Need η > 0. Resetting η=1e-3. "
-		model.η = 1e-3 
-	end
-	if model.epochs <= 0
-		warning *= "Need epochs > 0. Resetting epochs=1. "
-		model.epochs = 1
-	end
-	if model.batchsize <= 0
-		warning *= "Need batchsize > 0. Resetting batchsize=32. "
-		model.batchsize = 32
-	end
-	return warning
+    warning = ""
+    if model.mixtures <= 0
+        warning *= "Need mixtures > 0. Resetting mixtures=5. "
+        model.mixtures = 5
+    end
+    if isempty(model.layers)
+        warning *= "Need at least one hidden layer. Resetting layers=[128,]. "
+        model.layers = [128,]
+    end
+    if model.η <= 0
+        warning *= "Need η > 0. Resetting η=1e-3. "
+        model.η = 1e-3 
+    end
+    if model.epochs <= 0
+        warning *= "Need epochs > 0. Resetting epochs=1. "
+        model.epochs = 1
+    end
+    if model.batchsize <= 0
+        warning *= "Need batchsize > 0. Resetting batchsize=32. "
+        model.batchsize = 32
+    end
+    return warning
 end
 
 function MLJModelInterface.fit(model::MDN, verbosity, X, y)
-    fitresult, report = _fit(model, nothing, X, y)
-    return fitresult, nothing, report
+    m = MixtureDensityNetwork(size(X, 2), 1, model.layers, model.mixtures)
+    fitresult, report = MixtureDensityNetworks.fit!(m, X, y, opt=Flux.Adam(model.η), batchsize=model.batchsize, epochs=model.epochs)
+    cache = (;learning_curve=report.learning_curve[1:learning_curve.best_epoch])
+    return fitresult, cache, report
 end
 
 function MLJModelInterface.update(model::MDN, verbosity, old_fitresult, old_cache, X, y)
-    fitresult, report = _fit(model, old_fitresult, X, y)
-    return fitresult, old_cache, report
+    # Update Fitresult
+    fitresult, report = MixtureDensityNetworks.fit!(old_fitresult, X, y, opt=Flux.Adam(model.η), batchsize=model.batchsize, epochs=model.epochs)
+
+    # Update Report
+    learning_curve=vcat(old_cache.learning_curve, report.learning_curve)
+    best_epoch = argmin(learning_curve)
+    best_loss = minimum(learning_curve)
+    (;learning_curve=learning_curve, best_epoch=best_epoch, best_loss=best_loss)
+
+    # Update Cache
+    cache=(;learning_curve=learning_curve[1:best_epoch])
+
+    # Return Result
+    return fitresult, cache, report
 end
 
 function MLJModelInterface.predict(model::MDN, fitresult, Xnew)
-    return _predict(fitresult, Xnew)
+    return fitresult(Xnew)
+end
+
+function MLJModelInterface.predict_mean(model::MDN, fitresult, Xnew)
+    return fitresult(Xnew) |> mean
 end
 
 function MLJModelInterface.predict_mode(model::MDN, fitresult, Xnew)
-    return _predict_mode(fitresult, Xnew)
+    return fitresult(Xnew) |> mode
+end
+
+function MLJModelInterface.predict_median(model::MDN, fitresult, Xnew)
+    return fitresult(Xnew) |> median
 end
 
 function MLJModelInterface.supports_training_losses(::Type{MDN})
@@ -70,20 +116,20 @@ function MLJModelInterface.training_losses(::MDN, report)
 end
 
 MLJModelInterface.metadata_pkg(
-  MDN,
-  package_name="MixtureDensityNetworks",
-  package_uuid="521d8788-cab4-41cb-a05a-da376f16ad79",
-  package_url="https://github.com/JoshuaBillson/MixtureDensityNetworks.jl",
-  is_pure_julia=true, 
-  package_license="MIT", 
+    MDN,
+    package_name="MixtureDensityNetworks",
+    package_uuid="521d8788-cab4-41cb-a05a-da376f16ad79",
+    package_url="https://github.com/JoshuaBillson/MixtureDensityNetworks.jl",
+    is_pure_julia=true, 
+    package_license="MIT", 
 )
 
 MLJModelInterface.metadata_model(
-  MDN,
-  input_scitype=MMI.Table(MMI.Continuous),
-  target_scitype=AbstractVector{<:MMI.Continuous},
-  load_path="MixtureDensityNetworks.MDN", 
-  human_name="MDN", 
+    MDN,
+    input_scitype=MMI.Table(MMI.Continuous),
+    target_scitype=AbstractVector{<:MMI.Continuous},
+    load_path="MixtureDensityNetworks.MDN", 
+    human_name="MDN", 
 )
 
 """

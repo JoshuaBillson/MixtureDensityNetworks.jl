@@ -6,14 +6,12 @@ A custom Flux model whose predictions paramaterize a Gaussian Mixture Model.
 # Parameters
 $(TYPEDFIELDS)
 """
-struct MixtureDensityNetwork
+struct MixtureDensityNetwork{T}
     hidden::Flux.Chain
-    μ::Flux.Dense
-    Σ::Flux.Dense
-    π::Flux.Chain
+    output::T
 end
 
-Flux.@functor MixtureDensityNetwork
+Flux.@functor MixtureDensityNetwork (hidden, output)
 
 """
 $(TYPEDSIGNATURES)
@@ -25,7 +23,7 @@ Construct a new MixtureDensityNetwork.
 - `layers`: The topolgy of the hidden layers, starting from the first layer.
 - `mixtures`: The number of Gaussian mixtures to use in the conditional distribution.
 """
-function MixtureDensityNetwork(input::Int, layers::Vector{Int}, mixtures::Int)
+function MixtureDensityNetwork(input::Int, output::Int, layers::Vector{Int}, mixtures::Int)
     # Define Weight Initializer
     init(out, in) = Float64.(Flux.glorot_uniform(out, in))
 
@@ -39,10 +37,9 @@ function MixtureDensityNetwork(input::Int, layers::Vector{Int}, mixtures::Int)
     hidden_layer = Flux.Chain(hidden...)
     
     # Construct Output Layer
-    μ = Flux.Dense(layers[end]=>mixtures, init=init)
-    Σ = Flux.Dense(layers[end]=>mixtures, exp, init=init)
-    π = Flux.Chain(Flux.Dense(layers[end]=>mixtures, init=init), x -> Flux.softmax(x; dims=1))
-    return MixtureDensityNetwork(hidden_layer, μ, Σ, π)
+    output = output == 1 ? UnivariateGMM(layers[end], mixtures) : MultivariateGMM(layers[end], output, mixtures)
+
+    return MixtureDensityNetwork(hidden_layer, output)
 end
 
 function (m::MixtureDensityNetwork)(X::AbstractMatrix{<:Real})
@@ -50,9 +47,5 @@ function (m::MixtureDensityNetwork)(X::AbstractMatrix{<:Real})
 end
 
 function (m::MixtureDensityNetwork)(X::AbstractMatrix{Float64})
-    h = m.hidden(X)
-    μ = m.μ(h)
-    Σ = m.Σ(h)
-    π = m.π(h)
-    μ, Σ, π
+    return @pipe m.hidden(X) |> m.output
 end
