@@ -2,6 +2,7 @@ using MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLogger
 
 const n_samples = 1000
 const epochs = 1000
+const batchsize = 128
 const mixtures = 8
 const layers = [128, 128]
 
@@ -14,7 +15,7 @@ function main()
 
     # Fit Model
     model, report = with_logger(TerminalLogger()) do 
-        MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=128)
+        MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=batchsize)
     end
 
     # Plot Learning Curve
@@ -29,7 +30,7 @@ function main()
     save("PredictedDistribution.png", fig)
 
     # Plot Conditional Distribution
-    cond = model(reshape([-2.0], (1,1)))[1]
+    cond = model(reshape([-2.1], (1,1)))[1]
     fig = Figure(resolution=(1000, 500))
     density(fig[1,1], rand(cond, 10000), npoints=10000)
     save("ConditionalDistribution.png", fig)

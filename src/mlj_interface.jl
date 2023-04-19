@@ -64,9 +64,9 @@ function MLJModelInterface.clean!(model::MDN)
 end
 
 function MLJModelInterface.fit(model::MDN, verbosity, X, y)
-    m = MixtureDensityNetwork(size(X, 2), 1, model.layers, model.mixtures)
+    m = MixtureDensityNetwork(size(X, 1), 1, model.layers, model.mixtures)
     fitresult, report = MixtureDensityNetworks.fit!(m, X, y, opt=Flux.Adam(model.η), batchsize=model.batchsize, epochs=model.epochs)
-    cache = (;learning_curve=report.learning_curve[1:learning_curve.best_epoch])
+    cache = (;learning_curve=report.learning_curve[1:report.best_epoch])
     return fitresult, cache, report
 end
 
@@ -92,15 +92,15 @@ function MLJModelInterface.predict(model::MDN, fitresult, Xnew)
 end
 
 function MLJModelInterface.predict_mean(model::MDN, fitresult, Xnew)
-    return fitresult(Xnew) |> mean
+    return fitresult(Xnew) .|> mean
 end
 
 function MLJModelInterface.predict_mode(model::MDN, fitresult, Xnew)
-    return fitresult(Xnew) |> mode
+    return fitresult(Xnew) .|> mode
 end
 
 function MLJModelInterface.predict_median(model::MDN, fitresult, Xnew)
-    return fitresult(Xnew) |> median
+    return fitresult(Xnew) .|> median
 end
 
 function MLJModelInterface.supports_training_losses(::Type{MDN})

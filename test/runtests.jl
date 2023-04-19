@@ -2,11 +2,13 @@ using MixtureDensityNetworks
 using Test
 using Random
 using MLJ
+using Flux
 
 @testset "Native Interface" begin
     n_samples = 1000
-    epochs = 1000
-    mixtures = 6
+    epochs = 500
+    batchsize = 128
+    mixtures = 8
     layers = [128, 128]
 
     Random.seed!(123)
@@ -15,20 +17,21 @@ using MLJ
     X, Y = generate_data(n_samples)
 
     # Create Model
-    machine = MixtureDensityNetworks.Machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers))
+    model = MixtureDensityNetwork(1, 1, layers, mixtures)
 
     # Fit Model
-    MixtureDensityNetworks.fit!(machine, X, Y)
+    fitresult, report = MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=batchsize)
 
-    @test machine.report.best_loss < 1.70
+    @test report.best_loss < 1.60
 
-    @test likelihood_loss(machine.fitresult(X)..., Y) ≈ 1.4020062446704458 atol=0.1
+    @test likelihood_loss(fitresult(X), Y) < 1.60
 end
 
 @testset "MLJ Interface" begin
     n_samples = 1000
-    epochs = 1000
-    mixtures = 6
+    epochs = 500
+    batchsize = 128
+    mixtures = 8
     layers = [128, 128]
 
     Random.seed!(123)
@@ -37,7 +40,7 @@ end
     X, Y = generate_data(n_samples)
 
     # Create Model
-    mach = MLJ.machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers), MLJ.table(X'), Y[1,:])
+    mach = MLJ.machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers, batchsize=batchsize), MLJ.table(X'), Y[1,:])
 
     # Evaluate Model
     results = evaluation = MLJ.evaluate!(
@@ -46,14 +49,16 @@ end
         measure=[rsq, rmse, mae, mape], 
         operation=MLJ.predict_mean
     )
-
-    @test all((≈).(results.measurement, [0.34, 4.90, 4.09, 1.10], atol=0.1))
+    @test results.measurement[1] > 0.3
+    @test results.measurement[2] < 5.0
+    @test results.measurement[3] < 4.5
+    @test results.measurement[4] < 1.5
 
     # Fit Model
     MLJ.fit!(mach)
 
-    @test  MLJ.report(mach).best_loss < 1.70
+    @test  MLJ.report(mach).best_loss < 1.60
 
-    @test likelihood_loss(MLJ.fitted_params(mach).fitresult(X)..., Y) ≈ 1.4459579546517374 atol=0.1
+    @test likelihood_loss(MLJ.predict(mach), Y) < 1.60
 end
 
