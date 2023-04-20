@@ -1,7 +1,7 @@
 name = "MixtureDensityNetworks"
 uuid = "521d8788-cab4-41cb-a05a-da376f16ad79"
 authors = ["Joshua Billson"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
