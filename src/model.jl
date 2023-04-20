@@ -16,12 +16,13 @@ Flux.@functor MixtureDensityNetwork (hidden, output)
 """
 $(TYPEDSIGNATURES)
 
-Construct a new MixtureDensityNetwork.
+Construct a standard Mixture Density Network.
 
 # Parameters
-- `input`: The dimension of the input features.
+- `input`: The length of the input feature vectors.
+- `output`: The length of the output feature vectors.
 - `layers`: The topolgy of the hidden layers, starting from the first layer.
-- `mixtures`: The number of Gaussian mixtures to use in the conditional distribution.
+- `mixtures`: The number of Gaussian mixtures to use in the predicted distribution.
 """
 function MixtureDensityNetwork(input::Int, output::Int, layers::Vector{Int}, mixtures::Int)
     # Define Weight Initializer

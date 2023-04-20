@@ -32,7 +32,7 @@ We can fit our model to our data by calling `fit!(m, X, Y; opt=Flux.Adam(), batc
 containing the learning curve, best epoch, and lowest loss observed during training as its second value. We can use Makie's `lines` method to visualize
 the learning curve.
 ```julia
-model, report = tMixtureDensityNetworks.fit!(model, X, Y; epochs=500, opt=Flux.Adam(1e-3), batchsize=128)
+model, report = MixtureDensityNetworks.fit!(model, X, Y; epochs=500, opt=Flux.Adam(1e-3), batchsize=128)
 fig, _, _ = lines(1:500, lc, axis=(;xlabel="Epochs", ylabel="Loss"))
 ```
 
@@ -49,7 +49,7 @@ axislegend(ax, position=:lt)
 
 ![](figures/PredictedDistribution.png)
 
-We can also visualize the conditional distribution predicted by our model at x = -2.0.
+We can also visualize the conditional distribution predicted by our model at x = -2.1.
 ```julia
 cond = model(reshape([-2.1], (1,1)))[1]
 fig = Figure(resolution=(1000, 500))

@@ -1,7 +1,7 @@
 """
 $(TYPEDEF)
 
-A layer which returns a univriate Gaussian Mixture Model as its output.
+A layer which produces a univariate Gaussian Mixture Model as its output.
 
 # Parameters
 $(TYPEDFIELDS)
@@ -20,7 +20,7 @@ $(TYPEDSIGNATURES)
 Construct a layer which returns a univariate Gaussian Mixture Model as its output.
 
 # Parameters
-- `input`: Specifies the size of the input tensor, which should have the dimensions `input x N`.
+- `input`: Specifies the length of the feature vectors. The layer expects a matrix with the dimensions `input x N` as input.
 - `mixtures`: The number of mixtures to use in the GMM.
 """
 function UnivariateGMM(input::Int, mixtures::Int)
@@ -53,7 +53,7 @@ end
 """
 $(TYPEDEF)
 
-A layer which returns a multivariate Gaussian Mixture Model as its output.
+A layer which produces a multivariate Gaussian Mixture Model as its output.
 
 # Parameters
 $(TYPEDFIELDS)
@@ -74,8 +74,8 @@ $(TYPEDSIGNATURES)
 Construct a layer which returns a multivariate Gaussian Mixture Model as its output.
 
 # Parameters
-- `input`: Specifies the size of the input tensor, which should have the dimensions `input x N`.
-- `output`: Specifies the dimension of the labels, which should have the dimensions `output x N`.
+- `input`: Specifies the length of the feature vectors. The layer expects a matrix with the dimensions `input x N` as input.
+- `output`: Specifies the length of the label vectors. The layer returns a matrix with dimensions `output x N` as output.
 - `mixtures`: The number of mixtures to use in the GMM.
 """
 function MultivariateGMM(input::Int, output::Int, mixtures::Int)
