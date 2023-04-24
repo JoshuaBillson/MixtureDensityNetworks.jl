@@ -1,12 +1,13 @@
 name = "MixtureDensityNetworks"
 uuid = "521d8788-cab4-41cb-a05a-da376f16ad79"
 authors = ["Joshua Billson"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MLJModelInterface = "e80e1ace-859a-464e-9ed9-23947d8ae3ea"
 Pipe = "b98c9c47-44ae-5843-9183-064241ee97a0"
 ProgressLogging = "33c8b6b6-d38a-422a-b730-caa89a2f386c"

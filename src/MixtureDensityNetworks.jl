@@ -3,6 +3,7 @@ module MixtureDensityNetworks
 import Flux
 using Distributions
 using Statistics
+using LinearAlgebra
 using ProgressLogging
 using MLJModelInterface
 using DocStringExtensions
