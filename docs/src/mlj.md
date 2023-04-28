@@ -10,8 +10,6 @@ with the MLJ ecosystem. Below is an example demonstrating the use of this packag
 ```julia
 using MixtureDensityNetworks, Distributions, Logging, TerminalLoggers, CairoMakie, MLJ, Random
 
-Random.seed!(123)
-
 const n_samples = 1000
 const epochs = 500
 const batchsize = 128

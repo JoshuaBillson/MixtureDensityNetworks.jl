@@ -129,7 +129,7 @@ MLJModelInterface.metadata_model(
     input_scitype=MMI.Table(MMI.Continuous),
     target_scitype=AbstractVector{<:MMI.Continuous},
     load_path="MixtureDensityNetworks.MDN", 
-    human_name="MDN", 
+    human_name="Mixture Density Network", 
 )
 
 """

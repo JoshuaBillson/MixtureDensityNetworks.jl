@@ -17,11 +17,12 @@ with the MLJ ecosystem. Below is an example demonstrating the use of this packag
 # Example (Native Interface)
 
 ```julia
-using MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLoggers
+using Flux, MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLoggers
 
 const n_samples = 1000
 const epochs = 1000
-const mixtures = 6
+const batchsize = 128
+const mixtures = 8
 const layers = [128, 128]
 
 function main()
@@ -29,11 +30,11 @@ function main()
     X, Y = generate_data(n_samples)
 
     # Create Model
-    machine = MixtureDensityNetworks.Machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers))
+    model = MixtureDensityNetwork(1, 1, layers, mixtures)
 
     # Fit Model
-    report = with_logger(TerminalLogger()) do 
-        fit!(machine, X, Y)
+    model, report = with_logger(TerminalLogger()) do 
+        MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=batchsize)
     end
 
     # Plot Learning Curve
@@ -41,14 +42,14 @@ function main()
     save("LearningCurve.png", fig)
 
     # Plot Learned Distribution
-    Ŷ = predict(machine, X)
+    Ŷ = model(X)
     fig, ax, plt = scatter(X[1,:], rand.(Ŷ), markersize=4, label="Predicted Distribution")
     scatter!(ax, X[1,:], Y[1,:], markersize=3, label="True Distribution")
     axislegend(ax, position=:lt)
     save("PredictedDistribution.png", fig)
 
     # Plot Conditional Distribution
-    cond = predict(machine, reshape([-2.0], (1,1)))[1]
+    cond = model(reshape([-2.1], (1,1)))[1]
     fig = Figure(resolution=(1000, 500))
     density(fig[1,1], rand(cond, 10000), npoints=10000)
     save("ConditionalDistribution.png", fig)
@@ -60,11 +61,12 @@ main()
 # Example (MLJ Interface)
 
 ```julia
-using MixtureDensityNetworks, Distributions, Logging, TerminalLoggers, CairoMakie, MLJ
+using MixtureDensityNetworks, Distributions, Logging, TerminalLoggers, CairoMakie, MLJ, Random
 
 const n_samples = 1000
-const epochs = 1000
-const mixtures = 6
+const epochs = 500
+const batchsize = 128
+const mixtures = 8
 const layers = [128, 128]
 
 function main()
@@ -72,9 +74,9 @@ function main()
     X, Y = generate_data(n_samples)
 
     # Create Model
-    mach = MLJ.machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers), MLJ.table(X'), Y[1,:])
+    mach = MLJ.machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers, batchsize=batchsize), MLJ.table(X'), Y[1,:])
 
-    # Evaluate Model
+    # Fit Model on Training Data, Then Evaluate on Test
     with_logger(TerminalLogger()) do 
         @info "Evaluating..."
         evaluation = MLJ.evaluate!(
@@ -88,7 +90,7 @@ function main()
         @info "Metrics: " * join(["$name: $metric" for (name, metric) in zip(names, metrics)], ", ")
     end
 
-    # Fit Model
+    # Fit Model on Entire Dataset
     with_logger(TerminalLogger()) do 
         @info "Training..."
         MLJ.fit!(mach)

@@ -5,10 +5,10 @@ Fit the model to the data given by X and Y.
 
 # Parameters
 - `m`: The model to be trained.
-- `X`: A dxn matrix where d is the number of features and n is the number of samples.
-- `Y`: A 1xn matrix where n is the number of samples.
+- `X`: A dxn matrix where d is the number of input features and n is the number of samples.
+- `Y`: A dxn matrix where d is the dimension of the output and n is the number of samples.
 - `opt`: The optimization algorithm to use during training (default = Adam(1e-3)).
-- `batchsize`: The batch size dor each iteration of gradient descent (default = 32).
+- `batchsize`: The batch size for each iteration of gradient descent (default = 32).
 - `epochs`: The number of epochs to train for (default = 100).
 """
 function fit!(m, X::Matrix{<:Real}, Y::Matrix{<:Real}; opt=Flux.Adam(), batchsize=32, epochs=100)
@@ -79,8 +79,8 @@ $(TYPEDSIGNATURES)
 Predict the point associated with the highest probability in the conditional distribution P(Y|X).
 
 # Parameters
-- `m`: The model from which we want to generate a prediction.
-- `X`: The input features to be passed to `m`. Expected to be a matrix with dimensions d x n where d is the length of each feature vector.
+- `m`: The model with which to generate a prediction.
+- `X`: The input to be passed to `m`. Expected to be a matrix with dimensions dxn where n is the number of observations.
 
 # Returns
 The mode of each distribution returned by `m(X)`.

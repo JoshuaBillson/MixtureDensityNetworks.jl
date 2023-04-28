@@ -60,7 +60,7 @@ density(fig[1,1], rand(cond, 10000), npoints=10000)
 
 Below is a script for running the complete example.
 ```julia
-using MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLoggers
+using Flux, MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLoggers
 
 const n_samples = 1000
 const epochs = 1000

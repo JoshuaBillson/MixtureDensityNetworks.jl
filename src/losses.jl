@@ -22,7 +22,7 @@ Conpute the negative log-likelihood loss for a set of labels `y` under a set of 
 
 # Parameters
 - `distributions`: A vector of multivariate Gaussian Mixture Model distributions.
-- `y`: A kxn matrix of labels where k is the dimension of each label and n is the number of samples.
+- `y`: A dxn matrix of labels where d is the dimension of each label and n is the number of samples.
 """
 function likelihood_loss(distributions::Vector{<:MixtureModel{Multivariate}}, y::Matrix{<:Real})
     return likelihood_loss(distributions, Float64.(y))

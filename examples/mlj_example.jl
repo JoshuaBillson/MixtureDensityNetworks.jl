@@ -1,7 +1,5 @@
 using MixtureDensityNetworks, Distributions, Logging, TerminalLoggers, CairoMakie, MLJ, Random
 
-Random.seed!(123)
-
 const n_samples = 1000
 const epochs = 500
 const batchsize = 128

@@ -84,7 +84,7 @@ function MultivariateGMM(input::Int, output::Int, mixtures::Int)
 
     # Construct Output Layer
     μ = Flux.Dense(input=>(output * mixtures), init=init)
-    Σ = Flux.Dense(input=>(output * output * mixtures), init=init)
+    Σ = Flux.Dense(input=>(output * mixtures), exp, init=init)
     w = Flux.Chain(Flux.Dense(input=>mixtures, init=init), x -> Flux.softmax(x; dims=1))
     
     # Return Layer
@@ -98,16 +98,11 @@ end
 function (m::MultivariateGMM)(X::AbstractMatrix{Float64})
     # Forward Pass
     μ = reshape(m.μ(X), (m.mixtures, m.outputs, :))
-    Σ = reshape(m.Σ(X), (m.mixtures, m.outputs, m.outputs, :))
+    D = reshape(m.Σ(X), (m.mixtures, m.outputs, :))
     w = reshape(m.w(X), (m.mixtures, :))
-
-    # Get Cholesky Decomposition Of Σ
-    d_mask = [b == c ? 1.0 : 0.0 for a in 1:1, b in 1:m.outputs, c in 1:m.outputs, d in 1:1]
-    u_mask = [b < c ? 1.0 : 0.0 for a in 1:1, b in 1:m.outputs, c in 1:m.outputs, d in 1:1]
-    U = exp.(Σ .* d_mask) .+ (Σ .* u_mask)
 
     # Return Distributions
     return map(eachindex(w[1,:])) do obs
-        MixtureModel([MultivariateNormal(μ[mixture,:,obs], U[mixture,:,:,obs]' * U[mixture,:,:,obs] + 1e-9I) for mixture in eachindex(μ[:,1,1])], w[:,obs])
+        MixtureModel([MultivariateNormal(μ[mixture,:,obs], Diagonal(D[mixture,:,obs])) for mixture in eachindex(μ[:,1,1])], w[:,obs])
     end
 end
