@@ -7,6 +7,8 @@ using LinearAlgebra
 using ProgressLogging
 using MLJModelInterface
 using DocStringExtensions
+using Logging
+using TerminalLoggers
 using Pipe: @pipe
 
 const MMI = MLJModelInterface

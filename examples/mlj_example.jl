@@ -1,4 +1,4 @@
-using MixtureDensityNetworks, Distributions, Logging, TerminalLoggers, CairoMakie, MLJ, Random
+using MixtureDensityNetworks, Distributions, CairoMakie, MLJ
 
 const n_samples = 1000
 const epochs = 500
@@ -14,24 +14,21 @@ function main()
     mach = MLJ.machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers, batchsize=batchsize), MLJ.table(X'), Y[1,:])
 
     # Fit Model on Training Data, Then Evaluate on Test
-    with_logger(TerminalLogger()) do 
-        @info "Evaluating..."
-        evaluation = MLJ.evaluate!(
-            mach, 
-            resampling=Holdout(shuffle=true), 
-            measure=[rsq, rmse, mae, mape], 
-            operation=MLJ.predict_mean
-        )
-        names = ["R²", "RMSE", "MAE", "MAPE"]
-        metrics = round.(evaluation.measurement, digits=3)
-        @info "Metrics: " * join(["$name: $metric" for (name, metric) in zip(names, metrics)], ", ")
-    end
+    @info "Evaluating..."
+    evaluation = MLJ.evaluate!(
+        mach, 
+        resampling=Holdout(shuffle=true), 
+        measure=[rsq, rmse, mae, mape], 
+        operation=MLJ.predict_mean, 
+        verbosity=2  # Need to set verbosity=2 to show training progress during evaluation 
+    )
+    names = ["R²", "RMSE", "MAE", "MAPE"]
+    metrics = round.(evaluation.measurement, digits=3)
+    @info "Metrics: " * join(["$name: $metric" for (name, metric) in zip(names, metrics)], ", ")
 
     # Fit Model on Entire Dataset
-    with_logger(TerminalLogger()) do 
-        @info "Training..."
-        MLJ.fit!(mach)
-    end
+    @info "Training..."
+    MLJ.fit!(mach)
 
     # Plot Learning Curve
     fig, _, _ = lines(1:epochs, MLJ.training_losses(mach), axis=(;xlabel="Epochs", ylabel="Loss"))

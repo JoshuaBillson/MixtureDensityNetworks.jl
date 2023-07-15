@@ -33,7 +33,7 @@ function MixtureDensityNetwork(input::Int, output::Int, layers::Vector{Int}, mix
     layers = vcat([input], layers)
     for (dim_in, dim_out) in zip(layers, layers[2:end])
         push!(hidden, Flux.Dense(dim_in=>dim_out, init=init))
-        push!(hidden, Flux.BatchNorm(dim_out, Flux.relu, initβ=zeros, initγ=ones, ϵ=1e-5, momentum=0.1))
+        push!(hidden, Flux.BatchNorm(dim_out, Flux.relu, initβ=zeros, initγ=ones, eps=1e-5, momentum=0.1))
     end
     hidden_layer = Flux.Chain(hidden...)
     

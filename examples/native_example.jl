@@ -14,9 +14,7 @@ function main()
     model = MixtureDensityNetwork(1, 1, layers, mixtures)
 
     # Fit Model
-    model, report = with_logger(TerminalLogger()) do 
-        MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=batchsize)
-    end
+    model, report = MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=batchsize)
 
     # Plot Learning Curve
     fig, _, _ = lines(1:epochs, report.learning_curve, axis=(;xlabel="Epochs", ylabel="Loss"))

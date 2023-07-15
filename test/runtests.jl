@@ -57,7 +57,7 @@ end
     # Fit Model
     MLJ.fit!(mach)
 
-    @test  MLJ.report(mach).best_loss < 1.60
+    @test MLJ.report(mach).best_loss < 1.60
 
     @test likelihood_loss(MLJ.predict(mach), Y) < 1.60
 end

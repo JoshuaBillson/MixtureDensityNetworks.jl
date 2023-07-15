@@ -13,6 +13,10 @@ First, let's create our dataset. To properly demonstrate the power of MDNs, we'l
 using Flux, Distributions, CairoMakie, MixtureDensityNetworks
 
 const n_samples = 1000
+const epochs = 1000
+const batchsize = 128
+const mixtures = 8
+const layers = [128, 128]
 
 X, Y = generate_data(n_samples)
 
@@ -24,7 +28,7 @@ fig, ax, plt = scatter(X[1,:], Y[1,:], markersize=5)
 Now we'll define a standard univariate MDN. For this example, we construct a network with 2 hidden layers of size 128, which outputs a distribution
 with 5 Gaussian mixtures.
 ```julia
-model = MixtureDensityNetwork(1, 1, [128, 128], 5)
+model = MixtureDensityNetwork(1, 1, layers, mixtures)
 ```
 
 We can fit our model to our data by calling `fit!(m, X, Y; opt=Flux.Adam(), batchsize=32, epochs=100)`. We specify that we want to train our model for
@@ -32,8 +36,8 @@ We can fit our model to our data by calling `fit!(m, X, Y; opt=Flux.Adam(), batc
 containing the learning curve, best epoch, and lowest loss observed during training as its second value. We can use Makie's `lines` method to visualize
 the learning curve.
 ```julia
-model, report = MixtureDensityNetworks.fit!(model, X, Y; epochs=500, opt=Flux.Adam(1e-3), batchsize=128)
-fig, _, _ = lines(1:500, lc, axis=(;xlabel="Epochs", ylabel="Loss"))
+model, report = MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=batchsize)
+fig, _, _ = lines(1:epochs, report.learning_curve, axis=(;xlabel="Epochs", ylabel="Loss"))
 ```
 
 ![](figures/LearningCurve.png)
@@ -60,7 +64,7 @@ density(fig[1,1], rand(cond, 10000), npoints=10000)
 
 Below is a script for running the complete example.
 ```julia
-using Flux, MixtureDensityNetworks, Distributions, CairoMakie, Logging, TerminalLoggers
+using Flux, MixtureDensityNetworks, Distributions, CairoMakie
 
 const n_samples = 1000
 const epochs = 1000
@@ -76,9 +80,7 @@ function main()
     model = MixtureDensityNetwork(1, 1, layers, mixtures)
 
     # Fit Model
-    model, report = with_logger(TerminalLogger()) do 
-        MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=batchsize)
-    end
+    model, report = MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=batchsize)
 
     # Plot Learning Curve
     fig, _, _ = lines(1:epochs, report.learning_curve, axis=(;xlabel="Epochs", ylabel="Loss"))
