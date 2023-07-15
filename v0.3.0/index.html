@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Introduction · MixtureDensityNetworks.jl</title><script data-outdated-warner src="assets/warner.js"></script><link rel="canonical" href="https://JoshuaBillson.github.io/MixtureDensityNetworks.jl/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href>MixtureDensityNetworks.jl</a></span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Introduction</a><ul class="internal"><li class="toplevel"><a class="tocitem" href="#Example"><span>Example</span></a></li></ul></li><li><a class="tocitem" href="mlj/">MLJ Compatibility</a></li><li><a class="tocitem" href="reference/">API (Reference Manual)</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Introduction</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Introduction</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/JoshuaBillson/MixtureDensityNetworks.jl/blob/main/docs/src/index.md#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="MixtureDensityNetworks"><a class="docs-heading-anchor" href="#MixtureDensityNetworks">MixtureDensityNetworks</a><a id="MixtureDensityNetworks-1"></a><a class="docs-heading-anchor-permalink" href="#MixtureDensityNetworks" title="Permalink"></a></h1><p>This package provides a simple interface for defining, training, and deploying Mixture Density Networks (MDNs). MDNs were first proposed by <a href="https://publications.aston.ac.uk/id/eprint/373/1/NCRG_94_004.pdf">Bishop (1994)</a>. We can think of an MDN as a specialized type of Artificial Neural Network (ANN), which takes some features <code>X</code> and returns a distribution over the labels <code>Y</code> under a Gaussian Mixture Model (GMM). Unlike an ANN, MDNs maintain the full conditional distribution P(Y|X). This makes them particularly well-suited for situations where we want to maintain some measure of the uncertainty in our predictions. Moreover, because GMMs can represent multimodal distributions, MDNs are capable of modelling one-to-many relationships, which occurs when each input <code>X</code> can be associated with more than one output <code>Y</code>. </p><h1 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h1><p>First, let&#39;s create our dataset. To properly demonstrate the power of MDNs, we&#39;ll generate a many-to-one dataset where each x-value can map to more than one y-value.</p><pre><code class="language-julia hljs">using Flux, Distributions, CairoMakie, MixtureDensityNetworks
+
+const n_samples = 1000
+const epochs = 1000
+const batchsize = 128
+const mixtures = 8
+const layers = [128, 128]
+
+X, Y = generate_data(n_samples)
+
+fig, ax, plt = scatter(X[1,:], Y[1,:], markersize=5)</code></pre><p><img src="figures/Data.png" alt/></p><p>Now we&#39;ll define a standard univariate MDN. For this example, we construct a network with 2 hidden layers of size 128, which outputs a distribution with 5 Gaussian mixtures.</p><pre><code class="language-julia hljs">model = MixtureDensityNetwork(1, 1, layers, mixtures)</code></pre><p>We can fit our model to our data by calling <code>fit!(m, X, Y; opt=Flux.Adam(), batchsize=32, epochs=100)</code>. We specify that we want to train our model for 500 epochs with the Adam optimiser and a batch size of 128. This method returns the model with the lowest loss as its first value and a named tuple  containing the learning curve, best epoch, and lowest loss observed during training as its second value. We can use Makie&#39;s <code>lines</code> method to visualize the learning curve.</p><pre><code class="language-julia hljs">model, report = MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=batchsize)
+fig, _, _ = lines(1:epochs, report.learning_curve, axis=(;xlabel=&quot;Epochs&quot;, ylabel=&quot;Loss&quot;))</code></pre><p><img src="figures/LearningCurve.png" alt/></p><p>Let&#39;s evaluate how well our model learned to replicate our data by plotting both the learned and true distributions. We observe that our model has indeed learned to replicate the true distribution.</p><pre><code class="language-julia hljs">Ŷ = model(X)
+fig, ax, plt = scatter(X[1,:], rand.(Ŷ), markersize=4, label=&quot;Predicted Distribution&quot;)
+scatter!(ax, X[1,:], Y[1,:], markersize=3, label=&quot;True Distribution&quot;)
+axislegend(ax, position=:lt)</code></pre><p><img src="figures/PredictedDistribution.png" alt/></p><p>We can also visualize the conditional distribution predicted by our model at x = -2.1.</p><pre><code class="language-julia hljs">cond = model(reshape([-2.1], (1,1)))[1]
+fig = Figure(resolution=(1000, 500))
+density(fig[1,1], rand(cond, 10000), npoints=10000)</code></pre><p><img src="figures/ConditionalDistribution.png" alt/></p><p>Below is a script for running the complete example.</p><pre><code class="language-julia hljs">using Flux, MixtureDensityNetworks, Distributions, CairoMakie
+
+const n_samples = 1000
+const epochs = 1000
+const batchsize = 128
+const mixtures = 8
+const layers = [128, 128]
+
+function main()
+    # Generate Data
+    X, Y = generate_data(n_samples)
+
+    # Create Model
+    model = MixtureDensityNetwork(1, 1, layers, mixtures)
+
+    # Fit Model
+    model, report = MixtureDensityNetworks.fit!(model, X, Y; epochs=epochs, opt=Flux.Adam(1e-3), batchsize=batchsize)
+
+    # Plot Learning Curve
+    fig, _, _ = lines(1:epochs, report.learning_curve, axis=(;xlabel=&quot;Epochs&quot;, ylabel=&quot;Loss&quot;))
+    save(&quot;LearningCurve.png&quot;, fig)
+
+    # Plot Learned Distribution
+    Ŷ = model(X)
+    fig, ax, plt = scatter(X[1,:], rand.(Ŷ), markersize=4, label=&quot;Predicted Distribution&quot;)
+    scatter!(ax, X[1,:], Y[1,:], markersize=3, label=&quot;True Distribution&quot;)
+    axislegend(ax, position=:lt)
+    save(&quot;PredictedDistribution.png&quot;, fig)
+
+    # Plot Conditional Distribution
+    cond = model(reshape([-2.1], (1,1)))[1]
+    fig = Figure(resolution=(1000, 500))
+    density(fig[1,1], rand(cond, 10000), npoints=10000)
+    save(&quot;ConditionalDistribution.png&quot;, fig)
+end
+
+main()</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="mlj/">MLJ Compatibility »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Saturday 15 July 2023 21:59">Saturday 15 July 2023</span>. Using Julia version 1.9.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

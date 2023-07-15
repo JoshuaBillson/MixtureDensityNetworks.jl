@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>MLJ Compatibility · MixtureDensityNetworks.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link rel="canonical" href="https://JoshuaBillson.github.io/MixtureDensityNetworks.jl/mlj/"/><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">MixtureDensityNetworks.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Introduction</a></li><li class="is-active"><a class="tocitem" href>MLJ Compatibility</a></li><li><a class="tocitem" href="../reference/">API (Reference Manual)</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>MLJ Compatibility</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>MLJ Compatibility</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/JoshuaBillson/MixtureDensityNetworks.jl/blob/main/docs/src/mlj.md#" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="MLJ-Compatibility"><a class="docs-heading-anchor" href="#MLJ-Compatibility">MLJ Compatibility</a><a id="MLJ-Compatibility-1"></a><a class="docs-heading-anchor-permalink" href="#MLJ-Compatibility" title="Permalink"></a></h1><p>This package implements the interface specified by <a href="https://github.com/JuliaAI/MLJModelInterface.jl">MLJModelInterface</a> and is thus fully compatible with the MLJ ecosystem. Below is an example demonstrating the use of this package in conjunction with MLJ. </p><pre><code class="language-julia hljs">using MixtureDensityNetworks, Distributions, CairoMakie, MLJ
+
+const n_samples = 1000
+const epochs = 500
+const batchsize = 128
+const mixtures = 8
+const layers = [128, 128]
+
+function main()
+    # Generate Data
+    X, Y = generate_data(n_samples)
+
+    # Create Model
+    mach = MLJ.machine(MDN(epochs=epochs, mixtures=mixtures, layers=layers, batchsize=batchsize), MLJ.table(X&#39;), Y[1,:])
+
+    # Fit Model on Training Data, Then Evaluate on Test
+    @info &quot;Evaluating...&quot;
+    evaluation = MLJ.evaluate!(
+        mach, 
+        resampling=Holdout(shuffle=true), 
+        measure=[rsq, rmse, mae, mape], 
+        operation=MLJ.predict_mean, 
+        verbosity=2  # Need to set verbosity=2 to show training progress during evaluation 
+    )
+    names = [&quot;R²&quot;, &quot;RMSE&quot;, &quot;MAE&quot;, &quot;MAPE&quot;]
+    metrics = round.(evaluation.measurement, digits=3)
+    @info &quot;Metrics: &quot; * join([&quot;$name: $metric&quot; for (name, metric) in zip(names, metrics)], &quot;, &quot;)
+
+    # Fit Model on Entire Dataset
+    @info &quot;Training...&quot;
+    MLJ.fit!(mach)
+
+    # Plot Learning Curve
+    fig, _, _ = lines(1:epochs, MLJ.training_losses(mach), axis=(;xlabel=&quot;Epochs&quot;, ylabel=&quot;Loss&quot;))
+    save(&quot;LearningCurve.png&quot;, fig)
+
+    # Plot Learned Distribution
+    Ŷ = MLJ.predict(mach) .|&gt; rand
+    fig, ax, plt = scatter(X[1,:], Ŷ, markersize=4, label=&quot;Predicted Distribution&quot;)
+    scatter!(ax, X[1,:], Y[1,:], markersize=3, label=&quot;True Distribution&quot;)
+    axislegend(ax, position=:lt)
+    save(&quot;PredictedDistribution.png&quot;, fig)
+
+    # Plot Conditional Distribution
+    cond = MLJ.predict(mach, MLJ.table(reshape([-2.1], (1,1))))[1]
+    fig = Figure(resolution=(1000, 500))
+    density(fig[1,1], rand(cond, 10000), npoints=10000)
+    save(&quot;ConditionalDistribution.png&quot;, fig)
+end
+
+main()</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Introduction</a><a class="docs-footer-nextpage" href="../reference/">API (Reference Manual) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Saturday 15 July 2023 21:59">Saturday 15 July 2023</span>. Using Julia version 1.9.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
