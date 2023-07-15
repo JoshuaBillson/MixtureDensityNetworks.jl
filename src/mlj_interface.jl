@@ -65,14 +65,14 @@ end
 
 function MLJModelInterface.fit(model::MDN, verbosity, X, y)
     m = MixtureDensityNetwork(size(X, 1), 1, model.layers, model.mixtures)
-    fitresult, report = MixtureDensityNetworks.fit!(m, X, y, opt=Flux.Adam(model.η), batchsize=model.batchsize, epochs=model.epochs)
+    fitresult, report = MixtureDensityNetworks.fit!(m, X, y, opt=Flux.Adam(model.η), batchsize=model.batchsize, epochs=model.epochs, verbosity=verbosity)
     cache = (;learning_curve=report.learning_curve[1:report.best_epoch])
     return fitresult, cache, report
 end
 
 function MLJModelInterface.update(model::MDN, verbosity, old_fitresult, old_cache, X, y)
     # Update Fitresult
-    fitresult, report = MixtureDensityNetworks.fit!(old_fitresult, X, y, opt=Flux.Adam(model.η), batchsize=model.batchsize, epochs=model.epochs)
+    fitresult, report = MixtureDensityNetworks.fit!(old_fitresult, X, y, opt=Flux.Adam(model.η), batchsize=model.batchsize, epochs=model.epochs, verbosity=verbosity)
 
     # Update Report
     learning_curve=vcat(old_cache.learning_curve, report.learning_curve)

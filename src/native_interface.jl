@@ -10,20 +10,31 @@ Fit the model to the data given by X and Y.
 - `opt`: The optimization algorithm to use during training (default = Adam(1e-3)).
 - `batchsize`: The batch size for each iteration of gradient descent (default = 32).
 - `epochs`: The number of epochs to train for (default = 100).
+- `verbosity`: Whether to show a progress bar (default = 1) or not (0).
 """
-function fit!(m, X::Matrix{<:Real}, Y::Matrix{<:Real}; opt=Flux.Adam(), batchsize=32, epochs=100)
-    fit!(m, Float64.(X), Float64.(Y); opt=opt, batchsize=batchsize, epochs=epochs)
+function fit!(m, X::Matrix{<:Real}, Y::Matrix{<:Real}; opt=Flux.Optimisers.Adam(), batchsize=32, epochs=100, verbosity=1)
+    fit!(m, Float64.(X), Float64.(Y); opt=opt, batchsize=batchsize, epochs=epochs, verbosity=verbosity)
 end
 
-function fit!(m, X::Matrix{Float64}, Y::Matrix{Float64}; opt=Flux.Adam(), batchsize=32, epochs=100)
-    # Get Parameters
-    params = Flux.params(m)
+function fit!(m, X::Matrix{Float64}, Y::Matrix{Float64}; opt=Flux.Optimisers.Adam(), batchsize=32, epochs=100, verbosity=1)
+    # Select Logger Based On Verbosity And Environment
+    logger = verbosity == 1 ? ((@isdefined PlutoRunner) ? current_logger() : TerminalLogger()) : NullLogger()
+
+    # Run Fit Algorithm
+    with_logger(logger) do
+        _fit!(m, X, Y; opt=opt, batchsize=batchsize, epochs=epochs)
+    end
+end
+
+function _fit!(model, X::Matrix{Float64}, Y::Matrix{Float64}; opt=Flux.Optimisers.Adam(), batchsize=32, epochs=100)
+    # Initialize Optimiser
+    opt_state = Flux.setup(opt, model)
 
     # Prepare Training Data
     data = Flux.DataLoader((X, Y); batchsize=batchsize, shuffle=true)
 
     # Iterate Over Epochs
-    best_model = deepcopy(m)
+    best_model = deepcopy(model)
     learning_curve = Float64[]
     @progress for epoch in 1:epochs
 
@@ -32,10 +43,10 @@ function fit!(m, X::Matrix{Float64}, Y::Matrix{Float64}; opt=Flux.Adam(), batchs
         for (x, y) in data
 
             # Compute Loss and Gradient
-            l, grad = Flux.withgradient(() -> likelihood_loss(m(x), y), params)
+            l, grads = Flux.withgradient(m -> likelihood_loss(m(x), y), model)
 
             # Update Parameters
-            Flux.update!(opt, params, grad)
+            Flux.update!(opt_state, model, grads[1])
 
             # Save Loss
             push!(losses, l)
@@ -46,7 +57,7 @@ function fit!(m, X::Matrix{Float64}, Y::Matrix{Float64}; opt=Flux.Adam(), batchs
 
         # Save Best Performing Model
         if length(learning_curve) == 1 || learning_curve[end] < minimum(learning_curve[1:end-1])
-            best_model = deepcopy(m)
+            best_model = deepcopy(model)
         end
     end
 
